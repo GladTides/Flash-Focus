@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Flash Focus"
+description = "A polished single-player Stroop-effect arcade game for the Borderless Arcade, built around focus, adaptability, and fast visual decisions with a local leaderboard."
+version = "1.0.0"
+id = "artifacts/flash-focus"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22162
+
+[services.development]
+run = "pnpm --filter @workspace/flash-focus run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/flash-focus", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/flash-focus/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22162"
+BASE_PATH = "/"
