@@ -102,7 +102,7 @@ function randomRound(shifted: boolean, elapsed = 0, score = 0, streak = 0): Roun
   const distractors = COLOR_NAMES.filter((item) => item !== (shifted ? word : color)).sort(() => Math.random() - 0.5);
   const correct = shifted ? word : color;
   const options = [correct, ...distractors.slice(0, optionCount - 1)].sort(() => Math.random() - 0.5);
-  const promptAt = Date.now();
+  const promptAt = elapsed * 1000;
   return { word, color, options, shifted, promptAt, deadline: promptAt + answerWindow(elapsed, score, streak) };
 }
 
@@ -147,7 +147,10 @@ function Leaderboard({ entries, compact = false }: { entries: LeaderboardEntry[]
   return (
     <section className={compact ? "leaderboard-preview" : "result-card"} aria-labelledby={compact ? "leaderboard-preview-title" : "leaderboard-title"}>
       <div className="leaderboard-preview-header">
-        <h2 id={compact ? "leaderboard-preview-title" : "leaderboard-title"}>Top 10 / Borderless Arcade</h2>
+        <div>
+          <h2 id={compact ? "leaderboard-preview-title" : "leaderboard-title"}>BORDERLESS FOCUS LEADERBOARD</h2>
+          <p className="micro-copy">Who has the sharpest focus at Al-Futtaim?</p>
+        </div>
         {!compact && <Trophy size={17} color="hsl(var(--accent))" />}
       </div>
       {entries.length ? (
@@ -189,13 +192,19 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close help" data-testid="button-close-help"><X size={17} /></button>
         </div>
-        <p>Signals compete. Your job is simple: respond to the color in the ink, not the word it spells.</p>
+        <p><strong>Tap the COLOR you see — not the word you read.</strong> During a BORDERLESS SHIFT, the rule reverses for one round: read the word and ignore the ink.</p>
         <ul className="help-list">
           <li><span className="keycap">1—6</span><span>Choose a color with your keyboard, or tap a color button.</span></li>
           <li><span className="keycap">P</span><span>Pause or resume at any time. The cabinet also pauses if you leave the tab.</span></li>
           <li><span className="keycap">SHIFT</span><span>Every 15 seconds, one round asks you to follow the word instead.</span></li>
           <li><span className="keycap">60s</span><span>The real session is one focused minute. Practice is separate and never scored.</span></li>
         </ul>
+        <div className="stroop-note">
+          <h3>Why was that difficult?</h3>
+          <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
+          <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
+          <p className="micro-copy">This is an arcade game, not a medical, psychological, intelligence, or employee-performance assessment.</p>
+        </div>
         <div className="modal-actions">
           <button className="primary-button" onClick={onClose} data-testid="button-got-it">Got it <ArrowRight size={16} style={{ verticalAlign: "middle", marginLeft: 6 }} /></button>
         </div>
@@ -233,21 +242,25 @@ function HomeScreen({
       <main className="landing-grid">
         <section className="hero-copy">
           <span className="eyebrow">Borderless Arcade / 01</span>
-          <h1 className="display">Make the<br /><em>clear</em> call.</h1>
-          <p>A fast focus challenge for the moments when signals compete. One minute. Six colors. No room for the word to get in the way.</p>
+          <h1 className="display">FLASH <em>FOCUS</em></h1>
+          <h2 className="hero-subtitle">A Borderless Thinking Challenge</h2>
+          <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
+          <p>Across Al-Futtaim, every day brings changing information, competing signals and fast decisions. Flash Focus puts your focus and adaptability to the test.</p>
           <div className="rule-line">Tap the COLOR you see — not the word you read.</div>
+          <p className="signal-line">Different signals. One clear decision.</p>
           <form className="name-form" onSubmit={(event) => { event.preventDefault(); onStart(); }}>
-            <label htmlFor="player-name" className="sr-only">Your name</label>
-            <input id="player-name" className="name-input" maxLength={24} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" data-testid="input-player-name" />
-            <button className="primary-button" type="submit" disabled={!name.trim()} data-testid="button-start-game">Start the minute <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
+            <label htmlFor="player-name">Player name</label>
+            <input id="player-name" className="name-input" maxLength={18} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" data-testid="input-player-name" />
+            <button className="primary-button" type="submit" disabled={!name.trim()} data-testid="button-start-game">START GAME <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
           </form>
           <div className="micro-copy">
-            <button className="quiet-button" type="button" onClick={onPractice} data-testid="button-practice"><Eye size={15} /> Try a 5-second practice</button>
+            <button className="quiet-button" type="button" onClick={onPractice} disabled={!name.trim()} data-testid="button-practice"><Eye size={15} /> 5-SECOND PRACTICE ROUND</button>
+            <span className="skip-copy">Skip practice by selecting START GAME.</span>
             {practiceNotice && <span style={{ marginLeft: 12, color: "hsl(var(--secondary))" }} data-testid="text-practice-complete">Practice complete. You’re ready.</span>}
           </div>
           <div className="leaderboard-preview">
             <div className="leaderboard-preview-header">
-              <h2>Top 10 / Borderless Arcade</h2>
+              <div><h2>BORDERLESS FOCUS LEADERBOARD</h2><p className="micro-copy">Who has the sharpest focus at Al-Futtaim?</p></div>
               <span className="eyebrow">local cabinet</span>
             </div>
             {leaderboard.length ? (
@@ -262,10 +275,10 @@ function HomeScreen({
         <aside className="hero-stamp" aria-label="Flash Focus game preview">
           <div className="stamp-header"><span>signal / response</span><span className="stamp-live">live</span></div>
           <div className="signal-card">
-            <span className="sample-word">MINT</span>
+            <span className="sample-word">BLUE</span>
           </div>
           <div className="stamp-footer">
-            <span>read the color, not the word</span>
+            <span>Different signals. One clear decision.</span>
             <span className="color-dots" aria-hidden="true">
               {COLOR_NAMES.map((color) => <i key={color} style={{ background: `hsl(${COLORS[color].css})` }} />)}
             </span>
@@ -280,6 +293,8 @@ function GameScreen({
   round,
   score,
   streak,
+  multiplier,
+  tier,
   bestStreak,
   total,
   correct,
@@ -301,6 +316,8 @@ function GameScreen({
   round: Round | null;
   score: number;
   streak: number;
+  multiplier: number;
+  tier: string;
   bestStreak: number;
   total: number;
   correct: number;
@@ -327,12 +344,14 @@ function GameScreen({
         <div className="brand"><span className="brand-mark" aria-hidden="true" /><span>flash focus</span></div>
         <div className="game-stats">
           <div><span className="stat-label">Score</span><strong className="stat-value highlight" data-testid="text-score">{score.toLocaleString()}</strong></div>
-          <div><span className="stat-label">Streak</span><strong className="stat-value" data-testid="text-streak">{streak}×</strong></div>
+          <div><span className="stat-label">Streak</span><strong className="stat-value" data-testid="text-streak">{streak}</strong></div>
+          <div><span className="stat-label">{tier}</span><strong className="stat-value">{multiplier}×</strong></div>
           <div><span className="stat-label">Accuracy</span><strong className="stat-value" data-testid="text-accuracy">{accuracy}%</strong></div>
           <div className="timer-wrap"><span className="stat-label">Time remaining</span><strong className="stat-value" data-testid="text-time-remaining">{Math.ceil(remaining)}s</strong><div className="timer-track"><div className="timer-fill" style={{ transform: `scaleX(${percentage})` }} /></div></div>
         </div>
         <div className="top-actions">
           <button className="icon-button" onClick={onPause} aria-label={paused ? "Resume game" : "Pause game"} data-testid="button-pause">{paused ? <Play size={17} /> : <Pause size={17} />}</button>
+          <button className="icon-button" onClick={onRestart} aria-label="Restart game" data-testid="button-game-restart"><RotateCcw size={17} /></button>
           <button className="icon-button" onClick={onSound} aria-label={soundOn ? "Mute sound" : "Turn on sound"} data-testid="button-game-sound">{soundOn ? <Volume2 size={17} /> : <VolumeX size={17} />}</button>
           <button className="icon-button" onClick={onFullscreen} aria-label="Toggle fullscreen" data-testid="button-game-fullscreen"><Maximize2 size={17} /></button>
           <button className="icon-button" onClick={onHelp} aria-label="Open help" data-testid="button-game-help"><CircleHelp size={17} /></button>
@@ -342,14 +361,14 @@ function GameScreen({
         <section className="round-panel" aria-live="polite">
           <div className="round-meta">
             <span className="round-counter" data-testid="text-round-counter">{sessionKind === "practice" ? "practice / 05 seconds" : `round ${String(total + 1).padStart(2, "0")}`}</span>
-            {round?.shifted && <span className="shift-pill" data-testid="badge-shift">shifted round</span>}
+            {round?.shifted && <span className="shift-pill" data-testid="badge-shift">READ THE WORD</span>}
           </div>
           <div className={`challenge-card ${lastAnswer === "good" ? "is-correct" : lastAnswer === "bad" ? "is-wrong" : ""}`} data-testid="challenge-card">
             {round && <span className="challenge-word" style={{ color: `hsl(${COLORS[round.color].css})` }} data-testid="text-challenge-word">{COLORS[round.word].label.toUpperCase()}</span>}
           </div>
-          <p className="answer-copy">{round?.shifted ? "SHIFT: tap the word you see." : "Tap the color you see."}</p>
+          <p className="answer-copy">{round?.shifted ? "READ THE WORD" : "SELECT THE INK COLOR"}</p>
           <div className="answer-grid" role="group" aria-label="Color answers">
-            {COLOR_NAMES.map((color, index) => (
+            {(round?.options ?? []).map((color, index) => (
               <button key={color} className="answer-button" style={{ "--answer-color": COLORS[color].css } as CSSProperties} onClick={() => onAnswer(color)} data-testid={`button-answer-${color.toLowerCase()}`} aria-label={`Answer ${COLORS[color].label}`}>
                 <span className="answer-swatch" aria-hidden="true" />{index + 1}. {COLORS[color].label}
               </button>
@@ -359,7 +378,7 @@ function GameScreen({
           {sessionKind === "practice" && <p className="pause-note">Practice does not count toward your score.</p>}
         </section>
       </main>
-      {banner && <div className="shift-banner" data-testid="banner-shift"><strong>Borderless Shift</strong><span>For the next round, follow the word instead.</span></div>}
+      {banner && <div className="shift-banner" data-testid="banner-shift"><strong>BORDERLESS SHIFT!</strong><span>The rule just changed. Adapt.</span></div>}
       {feedback && <div className="toast-feedback" key={`${feedback.text}-${Date.now()}`} data-testid="text-feedback">{feedback.text}</div>}
       {paused && (
         <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="paused-title" data-testid="dialog-paused">
@@ -382,9 +401,14 @@ function ResultsScreen({
   name,
   score,
   correct,
+  incorrect,
+  timeouts,
   total,
   average,
   bestStreak,
+  completedShifts,
+  moments,
+  leaderboardPosition,
   leaderboard,
   onRestart,
   onHome,
@@ -396,9 +420,14 @@ function ResultsScreen({
   name: string;
   score: number;
   correct: number;
+  incorrect: number;
+  timeouts: number;
   total: number;
   average: number;
   bestStreak: number;
+  completedShifts: number;
+  moments: number;
+  leaderboardPosition: number | null;
   leaderboard: LeaderboardEntry[];
   onRestart: () => void;
   onHome: () => void;
@@ -408,14 +437,21 @@ function ResultsScreen({
   onFullscreen: () => void;
 }) {
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
-  const title = score >= 5000 ? "Signal sharp." : score >= 2800 ? "Good read." : "First signal.";
+  const title =
+    accuracy >= 90 && moments >= 2 && score >= 900 ? "BORDERLESS THINKER" :
+    average > 0 && average < 650 && accuracy >= 75 ? "LIGHTNING FOCUS" :
+    accuracy >= 92 ? "PRECISION MASTER" :
+    moments >= 2 ? "ADAPTABILITY ACE" :
+    bestStreak >= 15 ? "FOCUS MACHINE" :
+    accuracy >= 80 ? "CLEAR THINKER" :
+    accuracy >= 60 ? "STEADY FOCUS" : "FOCUS EXPLORER";
   return (
     <div className="screen-shell">
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
       <main className="results-layout">
         <section>
           <span className="eyebrow">session complete / {name}</span>
-          <h1 className="display">{title}<br /><em>Stay curious.</em></h1>
+          <h1 className="display">{title}</h1>
           <p className="results-lede">One minute on the cabinet. No claims, no labels — just the read you made when the signals crossed.</p>
           <div className="score-hero"><span className="score-number" data-testid="text-final-score">{score.toLocaleString()}</span><span className="score-label">points<br />final score</span></div>
           <div className="results-actions">
@@ -428,8 +464,13 @@ function ResultsScreen({
           <div className="result-grid">
             <div className="result-metric"><strong data-testid="text-result-accuracy">{accuracy}%</strong><span>accuracy</span></div>
             <div className="result-metric"><strong data-testid="text-result-average">{formatAverage(average)}</strong><span>average reaction</span></div>
-            <div className="result-metric"><strong data-testid="text-result-correct">{correct}/{total}</strong><span>correct calls</span></div>
-            <div className="result-metric"><strong data-testid="text-result-streak">{bestStreak}×</strong><span>best streak</span></div>
+            <div className="result-metric"><strong data-testid="text-result-correct">{correct}</strong><span>correct</span></div>
+            <div className="result-metric"><strong>{incorrect}</strong><span>incorrect</span></div>
+            <div className="result-metric"><strong>{timeouts}</strong><span>timeouts</span></div>
+            <div className="result-metric"><strong data-testid="text-result-streak">{bestStreak}</strong><span>best streak</span></div>
+            <div className="result-metric"><strong>{completedShifts}</strong><span>shifts completed</span></div>
+            <div className="result-metric"><strong>{moments}</strong><span>Borderless Moments</span></div>
+            <div className="result-metric"><strong>{leaderboardPosition ? `#${leaderboardPosition}` : "—"}</strong><span>leaderboard position</span></div>
           </div>
           <Leaderboard entries={leaderboard} />
         </aside>
@@ -450,6 +491,10 @@ function AppHome() {
   const [bestStreak, setBestStreak] = useState(0);
   const [total, setTotal] = useState(0);
   const [correct, setCorrect] = useState(0);
+  const [incorrect, setIncorrect] = useState(0);
+  const [timeouts, setTimeouts] = useState(0);
+  const [completedShifts, setCompletedShifts] = useState(0);
+  const [moments, setMoments] = useState(0);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [paused, setPaused] = useState(false);
   const [banner, setBanner] = useState(false);
@@ -460,17 +505,20 @@ function AppHome() {
   const [practiceNotice, setPracticeNotice] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [average, setAverage] = useState(0);
-  const sessionStartedAt = useRef(0);
-  const shiftPending = useRef(false);
-  const lastShiftMark = useRef(0);
+  const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null);
+  const activeElapsed = useRef(0);
+  const lastTickAt = useRef(0);
+  const nextShiftAt = useRef(15);
   const ending = useRef(false);
+  const answerLocked = useRef(false);
   const audioContext = useRef<AudioContext | null>(null);
 
-  const setName = (value: string) => setNameState(value.replace(/[^\p{L}\p{N} ._'’-]/gu, "").slice(0, 24));
+  const setName = (value: string) => setNameState(value.replace(/[^\p{L}\p{N} ._'’-]/gu, "").slice(0, 18));
 
   useEffect(() => {
     try {
-      setNameState(localStorage.getItem(NAME_KEY) || "");
+      setNameState((localStorage.getItem(NAME_KEY) || "").slice(0, 18));
+      setSoundOn(localStorage.getItem("flash-focus-sound") === "on");
     } catch { /* unavailable storage */ }
     setLeaderboard(safeReadBoard());
   }, []);
@@ -500,13 +548,25 @@ function AppHome() {
     } catch { /* audio permission or browser support failure */ }
   }, [soundOn]);
 
+  const toggleSound = () => {
+    setSoundOn((value) => {
+      const next = !value;
+      try { localStorage.setItem("flash-focus-sound", next ? "on" : "off"); } catch { /* optional */ }
+      return next;
+    });
+  };
+
   const beginCountdown = (kind: SessionKind) => {
+    const cleanName = name.trim().slice(0, 18);
+    if (!cleanName) return;
+    setNameState(cleanName);
     setSessionKind(kind); setPracticeNotice(false); setPaused(false); ending.current = false;
     setCountdown(3); setScreen("countdown"); playTone("start");
-    setScore(0); setStreak(0); setBestStreak(0); setTotal(0); setCorrect(0); setReactionTimes([]);
+    setScore(0); setStreak(0); setBestStreak(0); setTotal(0); setCorrect(0); setIncorrect(0); setTimeouts(0);
+    setCompletedShifts(0); setMoments(0); setReactionTimes([]); setLeaderboardPosition(null);
     setRemaining(kind === "practice" ? 5 : 60); setRound(null); setLastAnswer(null); setFeedback(null);
-    shiftPending.current = false; lastShiftMark.current = 0;
-    try { localStorage.setItem(NAME_KEY, name.trim().slice(0, 24)); } catch { /* optional */ }
+    activeElapsed.current = 0; nextShiftAt.current = 15; answerLocked.current = false; setBanner(false);
+    try { localStorage.setItem(NAME_KEY, cleanName); } catch { /* optional */ }
   };
 
   useEffect(() => {
@@ -515,9 +575,10 @@ function AppHome() {
       setCountdown((value) => {
         if (value <= 1) {
           window.clearInterval(timer);
-          sessionStartedAt.current = Date.now();
+          activeElapsed.current = 0;
+          lastTickAt.current = performance.now();
           setRemaining(sessionKind === "practice" ? 5 : 60);
-          setRound(randomRound(false));
+          setRound(randomRound(false, 0, 0, 0));
           setScreen(sessionKind === "practice" ? "practice" : "playing");
           return 0;
         }
@@ -536,49 +597,105 @@ function AppHome() {
     }
     const avg = reactionTimes.length ? reactionTimes.reduce((sum, value) => sum + value, 0) / reactionTimes.length : 0;
     setAverage(avg);
-    const entry: LeaderboardEntry = { name: name.trim() || "Guest", score, avg, date: new Date().toISOString() };
-    const updated = [...leaderboard, entry].sort((a, b) => b.score - a.score || a.avg - b.avg).slice(0, 10);
+    const accuracy = total ? Math.round((correct / total) * 100) : 0;
+    const entry: LeaderboardEntry = {
+      name: name.trim(),
+      score,
+      avg,
+      accuracy,
+      bestStreak,
+      moments,
+      date: new Date().toISOString(),
+    };
+    const normalized = entry.name.toLocaleLowerCase();
+    const withoutPlayer = leaderboard.filter((item) => item.name.trim().toLocaleLowerCase() !== normalized);
+    const previous = leaderboard.find((item) => item.name.trim().toLocaleLowerCase() === normalized);
+    const candidate = !previous || score > previous.score ? entry : previous;
+    const updated = [...withoutPlayer, candidate]
+      .sort((a, b) => b.score - a.score || b.accuracy - a.accuracy || b.bestStreak - a.bestStreak || b.moments - a.moments || a.date.localeCompare(b.date))
+      .slice(0, 10);
+    const position = updated.findIndex((item) => item.name.trim().toLocaleLowerCase() === normalized);
+    setLeaderboardPosition(position >= 0 ? position + 1 : null);
     setLeaderboard(updated); safeWriteBoard(updated); setScreen("results"); setRound(null);
-  }, [leaderboard, name, reactionTimes, score, sessionKind]);
+  }, [bestStreak, correct, leaderboard, moments, name, reactionTimes, score, sessionKind, total]);
+
+  const showNextRound = useCallback((shifted = false) => {
+    answerLocked.current = false;
+    setRound(randomRound(shifted, activeElapsed.current, score, streak));
+  }, [score, streak]);
+
+  const handleTimeout = useCallback(() => {
+    if (!round || answerLocked.current || paused || banner) return;
+    answerLocked.current = true;
+    setLastAnswer(null);
+    if (sessionKind === "practice") {
+      setFeedback({ text: "Time’s up — choose the ink color.", kind: "neutral" });
+      playTone("bad");
+      window.setTimeout(() => showNextRound(false), 180);
+      return;
+    }
+    setTotal((value) => value + 1);
+    setTimeouts((value) => value + 1);
+    setStreak(0);
+    if (round.shifted) setCompletedShifts((value) => value + 1);
+    setFeedback({ text: "Quick reset — focus again.", kind: "neutral" });
+    playTone("bad");
+    window.setTimeout(() => showNextRound(false), 180);
+  }, [banner, paused, playTone, round, sessionKind, showNextRound]);
 
   useEffect(() => {
     if (screen !== "playing" && screen !== "practice") return;
-    if (paused) return;
     const duration = sessionKind === "practice" ? 5 : 60;
+    lastTickAt.current = performance.now();
     const timer = window.setInterval(() => {
-      const elapsed = (Date.now() - sessionStartedAt.current) / 1000;
+      const now = performance.now();
+      const delta = (now - lastTickAt.current) / 1000;
+      lastTickAt.current = now;
+      if (paused || banner) return;
+      activeElapsed.current = Math.min(duration, activeElapsed.current + delta);
+      const elapsed = activeElapsed.current;
       const next = Math.max(0, duration - elapsed);
       setRemaining(next);
-      if (sessionKind === "game") {
-        const mark = Math.floor(elapsed / 15) * 15;
-        if (mark >= 15 && mark <= 45 && mark > lastShiftMark.current) {
-          lastShiftMark.current = mark; shiftPending.current = true; setBanner(true); playTone("shift");
-          window.setTimeout(() => setBanner(false), 2000);
-        }
+      if (round && elapsed * 1000 >= round.deadline) handleTimeout();
+      if (sessionKind === "game" && elapsed >= nextShiftAt.current && nextShiftAt.current <= 45 && !answerLocked.current) {
+        answerLocked.current = true;
+        setRound(null);
+        setBanner(true);
+        playTone("shift");
+        nextShiftAt.current += 15;
+        window.setTimeout(() => {
+          setBanner(false);
+          answerLocked.current = false;
+          setRound(randomRound(true, activeElapsed.current, score, streak));
+        }, 2000);
       }
       if (elapsed >= duration) finishSession();
     }, 80);
     return () => window.clearInterval(timer);
-  }, [finishSession, paused, playTone, screen, sessionKind]);
+  }, [banner, finishSession, handleTimeout, paused, playTone, round, score, screen, sessionKind, streak]);
 
   useEffect(() => {
     if (screen !== "playing" && screen !== "practice") return;
-    const pauseIfAway = () => {
-      if (!paused) setPaused(true);
-    };
+    const pauseIfAway = () => setPaused(true);
     const onVisibility = () => { if (document.hidden) pauseIfAway(); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", pauseIfAway);
     return () => { document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("blur", pauseIfAway); };
-  }, [paused, screen]);
+  }, [screen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, [contenteditable='true']") || event.repeat) return;
       if (showHelp) { if (event.key === "Escape") setShowHelp(false); return; }
       if ((screen === "playing" || screen === "practice") && !paused) {
         if (event.key.toLowerCase() === "p") { setPaused(true); return; }
+        if (event.key.toLowerCase() === "r") {
+          if (window.confirm("Restart this run? Your current score will be lost.")) beginCountdown(sessionKind);
+          return;
+        }
         const index = Number(event.key) - 1;
-        if (index >= 0 && index < COLOR_NAMES.length) handleAnswer(COLOR_NAMES[index]);
+        if (index >= 0 && round?.options[index]) handleAnswer(round.options[index]);
       } else if ((screen === "playing" || screen === "practice") && paused && event.key.toLowerCase() === "p") {
         setPaused(false);
       }
@@ -589,7 +706,9 @@ function AppHome() {
 
   const handleAnswer = (answer: ColorName) => {
     if (!round || paused || (screen !== "playing" && screen !== "practice")) return;
-    const reaction = Math.max(0, Date.now() - round.promptAt);
+    if (answerLocked.current || banner) return;
+    answerLocked.current = true;
+    const reaction = Math.max(0, activeElapsed.current * 1000 - round.promptAt);
     const expected = round.shifted ? round.word : round.color;
     const isCorrect = answer === expected;
     setLastAnswer(isCorrect ? "good" : "bad");
@@ -597,24 +716,32 @@ function AppHome() {
     if (sessionKind === "practice") {
       setFeedback({ text: isCorrect ? `${Math.round(reaction)} ms · correct` : "Not quite — follow the ink.", kind: isCorrect ? "good" : "bad" });
       playTone(isCorrect ? "good" : "bad");
-      setRound(randomRound(false));
+      window.setTimeout(() => showNextRound(false), 180);
       return;
     }
     setTotal((value) => value + 1); setReactionTimes((values) => [...values, reaction]);
     if (isCorrect) {
       const nextStreak = streak + 1;
-      const speedBonus = Math.max(0, Math.round(180 - reaction * 0.42));
-      const multiplier = 1 + Math.min(nextStreak - 1, 10) * 0.1;
-      const shiftBonus = round.shifted ? 250 : 0;
-      const earned = Math.round((100 + speedBonus) * multiplier) + shiftBonus;
+      const windowLength = Math.max(1, round.deadline - round.promptAt);
+      const speedBonus = Math.max(0, Math.min(15, Math.round(15 * (1 - reaction / windowLength))));
+      const multiplier = currentMultiplier(streak);
+      const borderlessMoment = round.shifted && streak >= 5;
+      const earned = Math.round((10 + speedBonus) * multiplier) + (borderlessMoment ? 50 : 0);
       setScore((value) => value + earned); setCorrect((value) => value + 1); setStreak(nextStreak); setBestStreak((value) => Math.max(value, nextStreak));
-      setFeedback({ text: round.shifted ? `Borderless Moment  +${earned}` : `+${earned}  ·  ${Math.round(reaction)} ms`, kind: "good" });
+      if (round.shifted) setCompletedShifts((value) => value + 1);
+      if (borderlessMoment) setMoments((value) => value + 1);
+      setFeedback({
+        text: borderlessMoment ? "BORDERLESS MOMENT! Perfect adaptation · +50" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
+        kind: "good",
+      });
       playTone("good");
     } else {
-      setStreak(0); setFeedback({ text: "Missed signal  ·  streak reset", kind: "bad" }); playTone("bad");
+      setIncorrect((value) => value + 1);
+      if (round.shifted) setCompletedShifts((value) => value + 1);
+      const messages = ["Classic Stroop trap!", "The word won that round.", "That signal was sneaky.", "Quick reset — focus again.", "The colors crossed their signals."];
+      setStreak(0); setFeedback({ text: messages[Math.floor(Math.random() * messages.length)], kind: "bad" }); playTone("bad");
     }
-    setRound(randomRound(shiftPending.current));
-    shiftPending.current = false;
+    window.setTimeout(() => showNextRound(false), 180);
   };
 
   const toggleFullscreen = () => {
@@ -624,15 +751,20 @@ function AppHome() {
     } catch { /* fullscreen can be blocked by an embedding browser */ }
   };
 
-  const restart = () => beginCountdown(sessionKind);
+  const restart = () => {
+    if (screen === "playing" || screen === "practice") {
+      if (!window.confirm("Restart this run? Your current score will be lost.")) return;
+    }
+    beginCountdown(sessionKind);
+  };
   const home = () => { setScreen("home"); setPaused(false); setRound(null); setFeedback(null); };
 
   return (
     <>
-      {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={() => setSoundOn((value) => !value)} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} practiceNotice={practiceNotice} />}
+      {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} practiceNotice={practiceNotice} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
-      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={() => setSoundOn((value) => !value)} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} sessionKind={sessionKind} />}
-      {screen === "results" && <ResultsScreen name={name.trim() || "Guest"} score={score} correct={correct} total={total} average={average} bestStreak={bestStreak} leaderboard={leaderboard} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={() => setSoundOn((value) => !value)} onFullscreen={toggleFullscreen} />}
+      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} sessionKind={sessionKind} />}
+      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </>
   );
