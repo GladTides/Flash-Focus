@@ -23,6 +23,7 @@ type Screen = "home" | "countdown" | "practice" | "playing" | "results";
 type SessionKind = "practice" | "game";
 type RoundPhase = "waiting" | "active" | "resolving" | "shift_announcement";
 type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral"; duration: number };
+type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "shift" | "moment" | "end" | "click" | "start";
 type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; promptAt: number; deadline: number };
 type LeaderboardEntry = { name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
 type ColorName = "RED" | "BLUE" | "GREEN" | "YELLOW" | "ORANGE" | "PURPLE";
@@ -204,25 +205,22 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
           <div>
             <span className="eyebrow">quick briefing</span>
-            <h2 id="help-title">Cut through the noise.</h2>
+            <h2 id="help-title">QUICK BRIEFING</h2>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close help" data-testid="button-close-help"><X size={17} /></button>
         </div>
-        <p><strong>Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.</strong></p>
+        <p className="briefing-lede">Stay sharp. The rule will change.</p>
+        <p><strong>“Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.”</strong></p>
         <ul className="help-list">
-          <li><span className="keycap">1—6</span><span>Choose a color with your keyboard, or tap a color button.</span></li>
-          <li><span className="keycap">P</span><span>Pause or resume at any time. The cabinet also pauses if you leave the tab.</span></li>
-          <li><span className="keycap">SHIFT</span><span>Every 15 seconds, one round asks you to follow the word instead.</span></li>
-          <li><span className="keycap">60s</span><span>The real session is one focused minute. Practice is separate and never scored.</span></li>
+          <li><span className="keycap">1–6</span><span><strong>CHOOSE</strong><small>Click a color or press 1–6.</small></span></li>
+          <li><span className="keycap">NORMAL</span><span><strong>COLOR</strong><small>Choose the INK COLOR, not the word.</small></span></li>
+          <li><span className="keycap">SHIFT</span><span><strong>SWITCH</strong><small>Every 15 seconds, the rule changes.<br />When you see BORDERLESS SHIFT, choose what the WORD SAYS instead.</small></span></li>
+          <li><span className="keycap">BONUS</span><span><strong>ADAPT</strong><small>Keep a streak of 5+ and correctly handle the rule change to earn:</small><b>BORDERLESS MOMENT!</b><small>You adapted to the rule change.</small><b>+50 BONUS</b></span></li>
+          <li><span className="keycap">P</span><span><strong>PAUSE</strong><small>Pause or resume at any time.</small></span></li>
+          <li><span className="keycap">60s</span><span><strong>GO!</strong><small>Score as many points as possible in one minute.</small></span></li>
         </ul>
-        <div className="stroop-note">
-          <h3>Why was that difficult?</h3>
-          <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
-          <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
-          <p className="micro-copy">This is an arcade game, not a medical, psychological, intelligence, or employee-performance assessment.</p>
-        </div>
         <div className="modal-actions">
-          <button className="primary-button" onClick={onClose} data-testid="button-got-it">Got it <ArrowRight size={16} style={{ verticalAlign: "middle", marginLeft: 6 }} /></button>
+          <button className="primary-button" onClick={onClose} data-testid="button-got-it">GOT IT — LET’S GO <ArrowRight size={16} style={{ verticalAlign: "middle", marginLeft: 6 }} /></button>
         </div>
       </div>
     </div>
@@ -498,6 +496,12 @@ function ResultsScreen({
             <button className="primary-button" onClick={onRestart} data-testid="button-play-again">Play again <RotateCcw size={16} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
             <button className="secondary-button" onClick={onHome} data-testid="button-back-home"><ArrowLeft size={16} style={{ verticalAlign: "middle", marginRight: 7 }} /> Back to start</button>
           </div>
+          <div className="result-explanation">
+            <h2>WHY WAS THAT DIFFICULT?</h2>
+            <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
+            <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
+            <p className="disclaimer">This is an arcade game, not a medical, psychological, intelligence, or employee-performance assessment.</p>
+          </div>
         </section>
         <aside className="result-card">
           <h2>your readout</h2>
@@ -558,6 +562,8 @@ function AppHome() {
   const transitionTimer = useRef<number | null>(null);
   const shiftTimer = useRef<number | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
+  const audioMasterGain = useRef<GainNode | null>(null);
+  const audioCompressor = useRef<DynamicsCompressorNode | null>(null);
 
   const setName = (value: string) => setNameState(value.replace(/[^\p{L}\p{N} ._'’-]/gu, "").slice(0, 18));
 
@@ -580,22 +586,104 @@ function AppHome() {
     return () => { document.body.style.overflow = ""; };
   }, [screen]);
 
-  const playTone = useCallback((kind: "good" | "bad" | "start" | "shift") => {
+  const playTone = useCallback((kind: SoundKind) => {
     if (!soundOn) return;
     try {
       const AudioContextCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioContextCtor) return;
       if (!audioContext.current) audioContext.current = new AudioContextCtor();
       const context = audioContext.current;
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = kind === "bad" ? "square" : "sine";
-      oscillator.frequency.value = kind === "good" ? 640 : kind === "shift" ? 310 : kind === "start" ? 460 : 150;
-      gain.gain.setValueAtTime(0.0001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(kind === "bad" ? 0.025 : 0.045, context.currentTime + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (kind === "shift" ? 0.24 : 0.13));
-      oscillator.connect(gain); gain.connect(context.destination);
-      oscillator.start(); oscillator.stop(context.currentTime + (kind === "shift" ? 0.25 : 0.14));
+      if (context.state === "suspended") void context.resume();
+      if (!audioMasterGain.current || !audioCompressor.current) {
+        const compressor = context.createDynamicsCompressor();
+        compressor.threshold.value = -18;
+        compressor.knee.value = 12;
+        compressor.ratio.value = 4;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.14;
+        const master = context.createGain();
+        master.gain.value = 0.72;
+        master.connect(compressor);
+        compressor.connect(context.destination);
+        audioMasterGain.current = master;
+        audioCompressor.current = compressor;
+      }
+      const output = audioMasterGain.current;
+      const now = context.currentTime;
+      const scheduleTone = (
+        startFrequency: number,
+        endFrequency: number,
+        duration: number,
+        offset: number,
+        type: OscillatorType,
+        volume: number,
+      ) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const start = now + offset;
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(startFrequency, start);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, endFrequency), start + duration * 0.82);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + Math.min(0.018, duration * 0.18));
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        oscillator.connect(gain); gain.connect(output);
+        oscillator.start(start); oscillator.stop(start + duration + 0.01);
+      };
+      const scheduleNoise = (duration: number, offset: number, volume: number) => {
+        const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+        const source = context.createBufferSource();
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+        const start = now + offset;
+        source.buffer = buffer;
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(380, start);
+        filter.frequency.exponentialRampToValueAtTime(1800, start + duration * 0.72);
+        filter.Q.value = 0.8;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        source.connect(filter); filter.connect(gain); gain.connect(output);
+        source.start(start); source.stop(start + duration + 0.01);
+      };
+
+      switch (kind) {
+        case "correct":
+          scheduleTone(520, 780, 0.13, 0, "triangle", 0.24);
+          break;
+        case "incorrect":
+          scheduleTone(180, 92, 0.16, 0, "triangle", 0.31);
+          scheduleTone(112, 78, 0.12, 0.025, "sine", 0.14);
+          break;
+        case "timeout":
+          scheduleTone(240, 92, 0.2, 0, "sine", 0.27);
+          break;
+        case "streak":
+          scheduleTone(300, 720, 0.17, 0, "triangle", 0.25);
+          break;
+        case "shift":
+          scheduleNoise(0.28, 0, 0.34);
+          break;
+        case "moment":
+          scheduleNoise(0.22, 0, 0.38);
+          scheduleTone(560, 940, 0.14, 0.12, "triangle", 0.3);
+          scheduleTone(1500, 1900, 0.055, 0.31, "sine", 0.16);
+          scheduleTone(1900, 2100, 0.045, 0.39, "sine", 0.11);
+          break;
+        case "end":
+          scheduleTone(115, 72, 0.24, 0, "sine", 0.3);
+          scheduleTone(1500, 1200, 0.06, 0.16, "triangle", 0.14);
+          break;
+        case "click":
+          scheduleTone(1450, 1000, 0.04, 0, "triangle", 0.12);
+          break;
+        case "start":
+          scheduleTone(460, 520, 0.09, 0, "square", 0.18);
+          break;
+      }
     } catch { /* audio permission or browser support failure */ }
   }, [soundOn]);
 

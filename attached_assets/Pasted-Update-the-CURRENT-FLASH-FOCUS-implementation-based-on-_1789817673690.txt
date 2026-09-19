@@ -1,0 +1,744 @@
+Update the CURRENT FLASH FOCUS implementation based on my latest hands-on testing.
+
+Do NOT rebuild the game from scratch.
+
+Preserve the current visual identity, scoring, leaderboard, 60-second session, Borderless Thinking concept, Stroop mechanic, BORDERLESS SHIFT, BORDERLESS MOMENT, player-name system, pause/restart/fullscreen controls, and all currently working functionality except where specifically changed below.
+
+This update has THREE objectives:
+
+1. Improve and simplify HOW TO PLAY.
+2. Keep the previously requested slower, controlled gameplay pacing and fix repeated/blinking feedback.
+3. Replace the current weak/quiet sound effects with louder, funny, memorable arcade sound effects while keeping ABSOLUTELY NO MUSIC.
+
+==================================================
+1. MAIN GAME INSTRUCTION
+==================================================
+
+Use this exact instruction consistently:
+
+“Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.”
+
+Do not mention BORDERLESS SHIFT in the main instruction because a first-time player has not yet learned what that term means.
+
+Do not use “vice versa.”
+
+==================================================
+2. REDESIGN THE HOW TO PLAY / QUICK BRIEFING
+==================================================
+
+The current Quick Briefing contains too much explanatory text before gameplay.
+
+Keep the existing premium visual style, modal/card layout and typography, but simplify the content substantially.
+
+Use this exact structure:
+
+QUICK BRIEFING
+
+Stay sharp. The rule will change.
+
+“Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.”
+
+Then show these short instruction rows:
+
+1–6 — CHOOSE
+Click a color or press 1–6.
+
+NORMAL — COLOR
+Choose the INK COLOR, not the word.
+
+SHIFT — SWITCH
+Every 15 seconds, the rule changes.
+When you see BORDERLESS SHIFT, choose what the WORD SAYS instead.
+
+BONUS — ADAPT
+Keep a streak of 5+ and correctly handle the rule change to earn:
+
+BORDERLESS MOMENT!
+You adapted to the rule change.
++50 BONUS
+
+P — PAUSE
+Pause or resume at any time.
+
+60s — GO!
+Score as many points as possible in one minute.
+
+At the bottom use one prominent button:
+
+GOT IT — LET’S GO
+
+Keep the close X button.
+
+The How to Play panel should fit comfortably at 1366×768 without scrolling.
+
+==================================================
+3. REMOVE THE STROOP EXPLANATION FROM HOW TO PLAY
+==================================================
+
+Remove this section from the pre-game Quick Briefing:
+
+“Why was that difficult?”
+
+and the long explanation about the Stroop effect.
+
+Players do not need psychology background before playing.
+
+Move the Stroop explanation to the RESULTS screen only.
+
+On Results use:
+
+WHY WAS THAT DIFFICULT?
+
+“Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.”
+
+Then:
+
+“Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.”
+
+Then show the existing disclaimer:
+
+“This is an arcade game, not a medical, psychological, intelligence, or employee-performance assessment.”
+
+==================================================
+4. NORMAL GAMEPLAY RULE INDICATOR
+==================================================
+
+During normal gameplay clearly display:
+
+NORMAL
+SELECT THE INK COLOR
+
+Example:
+
+Word:
+BLUE
+
+Ink:
+RED
+
+Correct answer:
+RED
+
+Keep this indicator visible but secondary to the main word.
+
+==================================================
+5. BORDERLESS SHIFT
+==================================================
+
+Approximately every 15 active gameplay seconds:
+
+Pause the active gameplay timer.
+
+Display prominently:
+
+BORDERLESS SHIFT!
+
+Then:
+
+The rule has changed — now do the opposite.
+
+Keep the announcement visible approximately 1.5–2 seconds.
+
+Do not start the special-round response timer until the announcement finishes.
+
+During the special round display:
+
+READ THE WORD
+
+Example:
+
+Word:
+BLUE
+
+Ink:
+RED
+
+Correct answer:
+BLUE
+
+Use restrained gold styling so the rule change is unmistakable.
+
+After the special round display briefly:
+
+SHIFT COMPLETE
+
+Then automatically return to:
+
+NORMAL
+SELECT THE INK COLOR
+
+==================================================
+6. BORDERLESS MOMENT
+==================================================
+
+Keep the special achievement:
+
+BORDERLESS MOMENT!
+
+It occurs only when:
+
+1. the player correctly completes the special rule-change round after BORDERLESS SHIFT; AND
+2. the player entered that round with a streak of at least 5 consecutive correct answers.
+
+When earned display exactly:
+
+BORDERLESS MOMENT!
+You adapted to the rule change.
++50 BONUS
+
+Award a separate +50 points.
+
+Do not multiply the +50 bonus.
+
+Preserve the player’s streak.
+
+Make BORDERLESS MOMENT noticeably more satisfying than an ordinary correct answer.
+
+Use:
+- restrained gold expanding pulse;
+- short positive particles;
+- animated +50 BONUS;
+- special funny/satisfying sound described below.
+
+Do not flash or strobe.
+
+==================================================
+7. GAMEPLAY PACING
+==================================================
+
+The current game feels too fast.
+
+The intended rhythm is:
+
+SEE → PROCESS → DECIDE → RESPOND
+
+not frantic clicking.
+
+Use approximately:
+
+EARLY GAME:
+3.0-second response window.
+
+MID GAME:
+gradually reduce toward approximately 2.2 seconds.
+
+FINAL DIFFICULTY:
+gradually reduce toward approximately 1.7 seconds.
+
+ABSOLUTE MINIMUM:
+Never provide less than approximately 1.7 seconds for a normal round.
+
+Difficulty progression must be gradual.
+
+Do not suddenly jump between response times.
+
+==================================================
+8. ROUND TRANSITION PACING
+==================================================
+
+CORRECT ANSWER:
+
+- resolve once;
+- show positive feedback;
+- show score popup;
+- wait approximately 250–300 ms;
+- present next round.
+
+Do not replace the word instantly on the same visual frame as the click.
+
+INCORRECT ANSWER:
+
+- resolve once;
+- disable swatches immediately;
+- briefly indicate the correct answer;
+- show ONE humorous feedback message;
+- keep it visible approximately 600–700 ms;
+- remove it;
+- start next round.
+
+TIMEOUT:
+
+- resolve once;
+- show ONE humorous timeout/focus message;
+- keep it visible approximately 600–700 ms;
+- remove it;
+- start next round.
+
+==================================================
+9. FIX REPEATED / BLINKING FEEDBACK
+==================================================
+
+The current message:
+
+“Quick reset — focus again.”
+
+must NOT continuously blink, reappear or behave like a persistent status indicator.
+
+Feedback must be EVENT-BASED.
+
+A feedback message may appear only after:
+
+- one incorrect answer; or
+- one timeout.
+
+Each resolved round may trigger a maximum of ONE feedback message.
+
+Flow:
+
+show message
+→ remain visible 600–700 ms
+→ fade once
+→ remove completely
+→ wait for another actual error event before showing another message.
+
+Do NOT:
+
+- use infinite CSS animation;
+- repeatedly toggle visibility;
+- trigger feedback from requestAnimationFrame;
+- trigger feedback from timer updates;
+- leave feedback permanently mounted and blinking;
+- create overlapping feedback timers.
+
+Use one controlled feedback state.
+
+Clear any previous feedback timeout before creating another.
+
+==================================================
+10. FUNNY FEEDBACK TEXT
+==================================================
+
+Keep a friendly rotating pool such as:
+
+“Classic Stroop trap!”
+
+“The word won that round.”
+
+“That signal was sneaky.”
+
+“Quick reset — focus again.”
+
+“Nearly! The ink had the final say.”
+
+“A tiny detour. Back in focus.”
+
+“The colors crossed their signals.”
+
+“That shift caught you — next one!”
+
+“Your eyes and the word disagreed.”
+
+“Reset. Refocus. Go again.”
+
+Never repeat the same message twice consecutively.
+
+Never mock or shame the player.
+
+==================================================
+11. COMPLETELY IMPROVE THE SOUND DESIGN
+==================================================
+
+The current sounds are too quiet and not entertaining enough.
+
+Replace/refine them with FUNNY, SATISFYING, SHORT ARCADE SOUND EFFECTS.
+
+IMPORTANT:
+
+ABSOLUTELY NO MUSIC.
+
+No:
+- background music;
+- melody;
+- soundtrack;
+- rhythmic backing;
+- ambient musical loop;
+- licensed audio;
+- downloaded audio;
+- external sound files.
+
+Generate all effects locally using Web Audio API.
+
+The sounds may be playful, comic and exaggerated, but must remain short and non-musical.
+
+==================================================
+12. SOUND PERSONALITY
+==================================================
+
+Create clearly different sound personalities:
+
+NORMAL CORRECT:
+A satisfying bright POP / PING.
+
+It should feel crisp and rewarding.
+
+INCORRECT:
+A funny soft BONK.
+
+Think:
+cartoon-style wooden/rubber bonk,
+but synthesize it originally with Web Audio.
+
+It should make a mistake slightly amusing rather than frustrating.
+
+TIMEOUT:
+A funny short PLOP / DROOP sound.
+
+Do not use a musical descending melody.
+
+STREAK TIER INCREASE:
+A short springy BOING / SNAP.
+
+It should make reaching a new multiplier feel playful.
+
+BORDERLESS SHIFT:
+A quick airy WHOOSH / SWOOP.
+
+This announces that something changed.
+
+BORDERLESS MOMENT:
+Create the most satisfying sound combination:
+
+WHOOSH
+→ POP
+→ short sparkling interface click
+
+Keep the complete effect short.
+
+It must feel like:
+“You nailed the rule change!”
+
+HIGH STREAK:
+Use a slightly stronger POP or double POP.
+
+Do not create a musical sequence.
+
+GAME END:
+Use a satisfying low THUMP followed by a short bright interface sparkle.
+
+BUTTONS:
+Use a tactile soft CLICK.
+
+==================================================
+13. INCREASE SOUND VOLUME
+==================================================
+
+The current sound volume is too low.
+
+Increase the overall perceived volume substantially.
+
+Create a centralized audio system with:
+
+MASTER GAIN
+
+and individual effect gain values.
+
+Target a master gain approximately in the range:
+
+0.65–0.80
+
+then tune individual effects underneath it.
+
+Do not blindly set every oscillator to maximum amplitude.
+
+Avoid clipping and distortion.
+
+Use short attack/release envelopes.
+
+Use compression or sensible gain staging if necessary.
+
+The sounds should be clearly audible from a normal PC monitor/laptop speaker in a moderately noisy office/event environment.
+
+Correct, incorrect, BORDERLESS SHIFT and BORDERLESS MOMENT must all be clearly audible.
+
+BORDERLESS MOMENT may be slightly louder than ordinary effects.
+
+Incorrect BONK may also be slightly more prominent because it is part of the humor.
+
+Do not make any effect painfully loud.
+
+==================================================
+14. SOUND TOGGLE
+==================================================
+
+Keep the existing Sound On/Off control.
+
+Sound ON should use the improved audible volume.
+
+Sound OFF must mute all effects immediately.
+
+Persist the sound preference.
+
+Do not create multiple AudioContexts after repeated Play Again actions.
+
+Reuse the audio system safely.
+
+==================================================
+15. AUDIO FALLBACK
+==================================================
+
+If Web Audio is unavailable:
+
+- continue gameplay normally;
+- do not crash;
+- communicate every event visually.
+
+Sound must enhance the game, never be required to understand it.
+
+==================================================
+16. DIFFICULTY MUST NOT COME ONLY FROM SPEED
+==================================================
+
+Progressive difficulty should combine:
+
+- 4 → 6 swatches;
+- incongruent word/ink combinations;
+- BORDERLESS SHIFT;
+- gradually shorter response windows;
+- maintaining streaks under pressure.
+
+Do not make the game difficult simply by making it extremely fast.
+
+The intended emotional progression is:
+
+EARLY:
+“I understand this.”
+
+MIDDLE:
+“I need to concentrate.”
+
+BORDERLESS SHIFT:
+“Wait — the rule changed!”
+
+BORDERLESS MOMENT:
+“Yes! I adapted.”
+
+LATE:
+“Stay sharp!”
+
+RESULTS:
+“I can beat that score.”
+
+==================================================
+17. ROUND STATE SAFETY
+==================================================
+
+Ensure only one round can exist at a time.
+
+Use explicit states such as:
+
+WAITING
+ACTIVE
+RESOLVING
+SHIFT_ANNOUNCEMENT
+PAUSED
+RESULTS
+
+When the player answers:
+
+ACTIVE → RESOLVING
+
+Immediately disable all swatches.
+
+Ignore additional clicks.
+
+Resolve scoring exactly once.
+
+Show feedback.
+
+Then create the next round.
+
+This must prevent:
+
+- double scoring;
+- overlapping rounds;
+- repeated feedback;
+- multiple timeout handlers;
+- blinking messages.
+
+==================================================
+18. PRESERVE CURRENT VISUAL IDENTITY
+==================================================
+
+The current visual design is strong.
+
+Preserve:
+
+- dark premium arcade appearance;
+- large FLASH FOCUS title;
+- Borderless Arcade identity;
+- navy/cyan/white/gold surrounding interface;
+- vivid Stroop colors;
+- player-name entry;
+- leaderboard;
+- 16:9 desktop presentation;
+- clean typography.
+
+Do not redesign the game unnecessarily.
+
+==================================================
+19. PRESERVE AL-FUTTAIM IDENTITY
+==================================================
+
+Keep:
+
+FLASH FOCUS
+A Borderless Thinking Challenge
+
+Keep:
+
+“See clearly. Think quickly. Adapt instantly.”
+
+Keep:
+
+“Different signals. One clear decision.”
+
+Keep:
+
+BORDERLESS SHIFT
+
+Keep:
+
+BORDERLESS MOMENT
+
+Keep:
+
+BORDERLESS FOCUS LEADERBOARD
+
+Do not add:
+
+- Al-Futtaim trivia;
+- division questions;
+- business logos;
+- partner brands;
+- corporate training;
+- employee assessment.
+
+==================================================
+20. TEST EVERYTHING
+==================================================
+
+After implementing the changes, test the actual game.
+
+Verify:
+
+1. Main instruction reads exactly:
+
+“Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.”
+
+2. Quick Briefing is shorter and fits at 1366×768.
+
+3. Stroop psychology explanation is removed from Quick Briefing.
+
+4. Stroop explanation remains on Results.
+
+5. Quick Briefing explains NORMAL mode.
+
+6. Quick Briefing explains the rule change.
+
+7. Quick Briefing explains BORDERLESS MOMENT.
+
+8. Early response window is approximately 3 seconds.
+
+9. Difficulty reduces response time gradually.
+
+10. No normal round goes below approximately 1.7 seconds.
+
+11. Correct transitions feel controlled.
+
+12. Incorrect feedback appears once only.
+
+13. Timeout feedback appears once only.
+
+14. “Quick reset — focus again.” never continuously blinks.
+
+15. Feedback timers cannot overlap.
+
+16. Double-clicking cannot score twice.
+
+17. NORMAL clearly displays SELECT THE INK COLOR.
+
+18. BORDERLESS SHIFT clearly displays READ THE WORD.
+
+19. BORDERLESS SHIFT pauses the active timer during its announcement.
+
+20. BORDERLESS MOMENT displays exactly:
+
+BORDERLESS MOMENT!
+You adapted to the rule change.
++50 BONUS
+
+21. BORDERLESS MOMENT scoring remains correct.
+
+22. Correct sound is clearly audible and satisfying.
+
+23. Incorrect sound is clearly audible and funny.
+
+24. Timeout sound is clearly audible and funny.
+
+25. Streak-tier sound is playful.
+
+26. BORDERLESS SHIFT sound is clearly audible.
+
+27. BORDERLESS MOMENT has the strongest satisfying sound.
+
+28. Sound volume is substantially louder than before without clipping.
+
+29. Sound toggle works immediately.
+
+30. Repeated Play Again does not create duplicate AudioContexts.
+
+31. Pause/resume works.
+
+32. Fullscreen works.
+
+33. Leaderboard still works.
+
+34. Game remains exactly 60 active gameplay seconds.
+
+35. No console errors occur.
+
+36. There is absolutely NO MUSIC.
+
+==================================================
+21. STOP CONDITION
+==================================================
+
+Make only these:
+
+- How to Play improvements;
+- instruction improvements;
+- pacing improvements;
+- feedback-state fixes;
+- funny sound improvements;
+- sound-volume improvements;
+- BORDERLESS SHIFT clarity improvements;
+- BORDERLESS MOMENT clarity improvements.
+
+Do not add new game modes.
+
+Do not redesign the game.
+
+Do not add new scoring systems.
+
+Do not add new Al-Futtaim features.
+
+Do not add external dependencies.
+
+Do not add external audio.
+
+Do not add music.
+
+Once implemented and tested, STOP.
+
+Report:
+
+1. how Quick Briefing was simplified;
+2. what caused the blinking feedback and how it was fixed;
+3. final response-time progression;
+4. exact funny sounds implemented;
+5. master and individual sound gain settings;
+6. files changed;
+7. tests performed;
+8. any remaining issue.
+
+Do not proceed with further polishing until I test this revised version.
