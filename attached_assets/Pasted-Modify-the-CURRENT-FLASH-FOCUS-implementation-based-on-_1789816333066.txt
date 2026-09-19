@@ -1,0 +1,548 @@
+Modify the CURRENT FLASH FOCUS implementation based on hands-on gameplay testing.
+
+Do not rebuild the game from scratch.
+
+Do not redesign the visual identity.
+
+Do not change the leaderboard, scoring structure, 60-second session, Al-Futtaim / Borderless Thinking concept, Stroop mechanic, sound policy, or existing working features except where specifically instructed below.
+
+The current game works, but hands-on testing identified two UX problems:
+
+1. Gameplay becomes too fast and does not give the player enough time to consciously process the Stroop challenge.
+2. Feedback such as “Quick reset — focus again.” keeps appearing/blinking repeatedly and becomes distracting.
+
+Fix these issues carefully.
+
+==================================================
+1. UPDATE THE MAIN INSTRUCTION
+==================================================
+
+Replace:
+
+“Tap the COLOR you see — not the word you read.”
+
+with:
+
+“Tap the COLOR you see — not the word you read. During BORDERLESS SHIFT, do the opposite.”
+
+Use this exact wording consistently on the start screen and Help/instructions.
+
+Do NOT use:
+“and vice versa”
+
+because the instruction should explicitly explain WHEN the opposite rule applies.
+
+Keep the instruction visually prominent.
+
+==================================================
+2. SLOW THE GAME TO A CONTROLLED ARCADE PACE
+==================================================
+
+The current gameplay feels too fast.
+
+The objective is NOT to make the game slow.
+
+The objective is to create:
+
+SEE → PROCESS → DECIDE → RESPOND
+
+rather than frantic clicking.
+
+Use approximately these answer windows:
+
+EARLY GAME:
+3.0 seconds maximum response time.
+
+MID GAME:
+gradually reduce toward approximately 2.2 seconds.
+
+FINAL DIFFICULTY:
+gradually reduce toward approximately 1.7 seconds.
+
+ABSOLUTE MINIMUM:
+Never give the player less than 1.7 seconds to answer a normal round.
+
+Do not suddenly jump between response times.
+
+Difficulty progression must be gradual.
+
+The player should feel increasing pressure during the 60-second session without feeling that the interface is rushing uncontrollably.
+
+==================================================
+3. CONTROL ROUND TRANSITION SPEED
+==================================================
+
+After a CORRECT answer:
+
+- show the positive response briefly;
+- show the score popup;
+- wait approximately 250–300 ms;
+- then present the next round.
+
+Do not instantly replace the word on the same visual frame as the click.
+
+The player needs a tiny moment to register success.
+
+After an INCORRECT answer:
+
+- resolve the round once;
+- show the correct answer clearly;
+- show ONE humorous feedback message;
+- keep the feedback visible for approximately 600–700 ms;
+- then remove it completely;
+- then start the next round.
+
+After a TIMEOUT:
+
+- resolve the round once;
+- show ONE timeout/focus message;
+- keep it visible approximately 600–700 ms;
+- remove it completely;
+- then start the next round.
+
+==================================================
+4. FIX THE BLINKING FEEDBACK BUG
+==================================================
+
+The message:
+
+“Quick reset — focus again.”
+
+currently appears to keep blinking/reappearing.
+
+This must be fixed.
+
+Feedback messages must be EVENT-BASED, not continuously rendered status messages.
+
+A feedback message may appear ONLY when a specific round resolves as:
+
+- incorrect; or
+- timeout.
+
+Each resolved round may trigger a maximum of ONE feedback message.
+
+Once displayed:
+
+1. show the message;
+2. keep it visible for approximately 600–700 ms;
+3. fade it out once;
+4. remove it from the DOM or clear its state;
+5. do not show it again until another incorrect answer or timeout occurs.
+
+Do not use a repeating CSS animation.
+
+Do not use an infinite animation.
+
+Do not repeatedly toggle visibility.
+
+Do not trigger feedback from the main animation loop.
+
+Do not trigger feedback from every timer update.
+
+Do not allow multiple feedback timers to overlap.
+
+Before displaying new feedback, cancel/clear any previous feedback timeout.
+
+Use a single controlled feedback state.
+
+==================================================
+5. ROTATE FEEDBACK MESSAGES PROPERLY
+==================================================
+
+Keep the friendly feedback pool, for example:
+
+“Classic Stroop trap!”
+
+“The word won that round.”
+
+“That signal was sneaky.”
+
+“Quick reset — focus again.”
+
+“Nearly! The ink had the final say.”
+
+“A tiny detour. Back in focus.”
+
+“The colors crossed their signals.”
+
+“That shift caught you — next one!”
+
+“Your eyes and the word disagreed.”
+
+“Reset. Refocus. Go again.”
+
+Rules:
+
+- choose only one message per incorrect answer/timeout;
+- never repeat the same message twice consecutively;
+- never blink the message;
+- never leave the message permanently visible;
+- never show multiple messages simultaneously;
+- never allow feedback to cover the color-selection controls;
+- keep the tone friendly and non-shaming.
+
+==================================================
+6. MAKE NORMAL AND BORDERLESS SHIFT RULES OBVIOUS
+==================================================
+
+During NORMAL gameplay, display a small persistent rule indicator:
+
+NORMAL
+SELECT THE INK COLOR
+
+Example:
+
+Word displayed:
+BLUE
+
+Ink:
+RED
+
+Correct answer:
+RED
+
+During BORDERLESS SHIFT, clearly change the indicator to:
+
+BORDERLESS SHIFT
+READ THE WORD
+
+Example:
+
+Word displayed:
+BLUE
+
+Ink:
+RED
+
+Correct answer:
+BLUE
+
+Use restrained gold styling during BORDERLESS SHIFT.
+
+After the shifted round finishes, clearly return to:
+
+NORMAL
+SELECT THE INK COLOR
+
+This change should happen automatically.
+
+==================================================
+7. BORDERLESS SHIFT PACING
+==================================================
+
+Keep BORDERLESS SHIFT approximately every 15 active gameplay seconds.
+
+When triggered:
+
+pause the active gameplay timer.
+
+Display:
+
+BORDERLESS SHIFT!
+
+Then:
+
+“The rule just changed. Adapt.”
+
+Keep this visible approximately 1.5–2 seconds.
+
+Then show:
+
+READ THE WORD
+
+and begin the special round.
+
+Do not start the response timer while the BORDERLESS SHIFT announcement is still being displayed.
+
+After the player answers:
+
+show the result;
+
+then return automatically to:
+
+NORMAL
+SELECT THE INK COLOR
+
+Resume normal gameplay.
+
+==================================================
+8. PRESERVE BORDERLESS MOMENT
+==================================================
+
+Keep:
+
+BORDERLESS MOMENT!
+
+when the player correctly completes a BORDERLESS SHIFT while meeting the existing streak requirement.
+
+Display:
+
+BORDERLESS MOMENT!
+Perfect adaptation · +50
+
+Make this feel more important than an ordinary correct answer.
+
+Keep the existing restrained gold visual treatment and short natural/interface sound.
+
+Do not add music.
+
+==================================================
+9. DO NOT MAKE DIFFICULTY = SPEED ONLY
+==================================================
+
+Progressive difficulty should come from a combination of:
+
+- increasing swatches from 4 toward 6;
+- more incongruent word/ink combinations;
+- BORDERLESS SHIFT;
+- gradually shorter response windows;
+- maintaining a streak under pressure.
+
+Do NOT make the game difficult simply by making every round extremely fast.
+
+The player should still have enough time to THINK.
+
+The intended feeling is:
+
+Early:
+“I understand this.”
+
+Middle:
+“I need to concentrate.”
+
+BORDERLESS SHIFT:
+“Wait — rule changed!”
+
+Late:
+“I need to stay sharp.”
+
+Results:
+“I can beat that score.”
+
+==================================================
+10. KEEP THE 60-SECOND SESSION
+==================================================
+
+Do not change the overall active gameplay duration.
+
+Keep:
+
+60 seconds ACTIVE gameplay.
+
+The active timer must pause during:
+
+- BORDERLESS SHIFT announcement;
+- manual pause;
+- browser focus-loss pause;
+- hidden-tab pause.
+
+Short answer-feedback transitions may remain part of the active arcade flow, but they must not create overlapping rounds.
+
+==================================================
+11. PREVENT ROUND OVERLAP
+==================================================
+
+Review the round-state logic carefully.
+
+There must never be two active rounds simultaneously.
+
+Use an explicit state such as:
+
+WAITING
+ACTIVE
+RESOLVING
+SHIFT_ANNOUNCEMENT
+PAUSED
+RESULTS
+
+Once the player answers:
+
+ACTIVE → RESOLVING
+
+Immediately disable all swatches.
+
+Ignore additional clicks.
+
+Resolve scoring exactly once.
+
+Show feedback.
+
+Then:
+
+RESOLVING → ACTIVE
+
+with the next round.
+
+This should also eliminate accidental double scoring and repeated feedback.
+
+==================================================
+12. KEEP THE CURRENT VISUAL DESIGN
+==================================================
+
+The current FLASH FOCUS visual direction is good.
+
+Preserve:
+
+- dark premium arcade appearance;
+- large FLASH FOCUS title;
+- cyan/navy/white/gold surrounding interface;
+- vivid Stroop colors;
+- Borderless Arcade identity;
+- leaderboard;
+- player-name entry;
+- 16:9 desktop layout.
+
+Do not redesign the start screen unless necessary to accommodate the updated instruction.
+
+==================================================
+13. KEEP THE AL-FUTTAIM FRAMING
+==================================================
+
+Preserve:
+
+FLASH FOCUS
+A Borderless Thinking Challenge
+
+Tagline:
+
+“See clearly. Think quickly. Adapt instantly.”
+
+Preserve the existing concise Al-Futtaim framing.
+
+Keep:
+
+“Different signals. One clear decision.”
+
+Keep:
+
+BORDERLESS SHIFT
+
+Keep:
+
+BORDERLESS MOMENT
+
+Keep:
+
+BORDERLESS FOCUS LEADERBOARD
+
+Do not add Al-Futtaim trivia, business logos, division questions, partner brands, corporate training, or employee assessment.
+
+==================================================
+14. AUDIO POLICY REMAINS UNCHANGED
+==================================================
+
+ABSOLUTELY NO MUSIC.
+
+No background music.
+
+No melody.
+
+No rhythmic soundtrack.
+
+No ambient musical loop.
+
+No external audio files.
+
+Keep only the existing short natural/interface effects such as:
+
+- correct confirmation;
+- incorrect boop/tap;
+- countdown tick;
+- BORDERLESS SHIFT airy sweep;
+- BORDERLESS MOMENT confirmation;
+- interface click.
+
+==================================================
+15. TEST THE FIX
+==================================================
+
+After making the changes, test the actual game.
+
+Verify:
+
+1. Main instruction now reads exactly:
+
+“Tap the COLOR you see — not the word you read. During BORDERLESS SHIFT, do the opposite.”
+
+2. Early rounds allow approximately 3 seconds.
+
+3. Difficulty reduces response time gradually.
+
+4. No normal round ever provides less than approximately 1.7 seconds.
+
+5. Correct-answer transitions do not feel instantaneous.
+
+6. Incorrect feedback appears only once.
+
+7. Timeout feedback appears only once.
+
+8. “Quick reset — focus again.” never blinks continuously.
+
+9. Feedback disappears before the next feedback event.
+
+10. Multiple feedback timers cannot overlap.
+
+11. Double-clicking cannot score twice.
+
+12. Only one round can be active at a time.
+
+13. NORMAL mode clearly says:
+
+SELECT THE INK COLOR
+
+14. BORDERLESS SHIFT clearly says:
+
+READ THE WORD
+
+15. BORDERLESS SHIFT announcement pauses the active timer.
+
+16. The shifted round does not begin until the announcement finishes.
+
+17. BORDERLESS MOMENT still works correctly.
+
+18. The full game remains 60 active seconds.
+
+19. Leaderboard still works.
+
+20. Play Again still works.
+
+21. Pause/resume still works.
+
+22. Sound toggle still works.
+
+23. Fullscreen still works.
+
+24. No console errors occur.
+
+25. There is still absolutely NO MUSIC.
+
+==================================================
+16. STOP CONDITION
+==================================================
+
+Make only these gameplay-pacing, instruction, feedback-state, and clarity improvements.
+
+Do not add new game modes.
+
+Do not redesign the game.
+
+Do not add new scoring systems.
+
+Do not add new Al-Futtaim features.
+
+Do not add external dependencies.
+
+Do not add music.
+
+Once these changes are implemented and tested, STOP.
+
+Report:
+
+1. what caused the repeated/blinking feedback;
+2. how it was fixed;
+3. the final response-time progression;
+4. files changed;
+5. tests performed;
+6. any remaining issue.
+
+Do not proceed with further polishing until I test this revised version.

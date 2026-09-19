@@ -203,6 +203,10 @@ button:focus-visible, input:focus-visible {
 .game-body { flex: 1; display: grid; place-items: center; min-height: 480px; padding: 30px 0 42px; }
 .round-panel { width: min(760px, 100%); text-align: center; }
 .round-meta { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 25px; margin-bottom: 17px; }
+.mode-pill, .shift-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid hsl(var(--border)); border-radius: 999px; padding: 5px 10px; font-family: var(--app-font-mono); font-size: .64rem; letter-spacing: .08em; }
+.mode-pill strong, .shift-pill strong { font-size: .58rem; letter-spacing: .12em; }
+.mode-pill span { color: hsl(var(--muted-foreground)); }
+.shift-pill { border-color: hsl(var(--accent) / .65); background: hsl(var(--accent) / .08); color: hsl(var(--accent)); }
 .round-counter { font-family: var(--app-font-mono); color: hsl(var(--muted-foreground)); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
 .shift-pill { padding: 6px 10px; background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); border-radius: 5px; font-size: .67rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; animation: shift-in .35s ease both; }
 .challenge-card {
@@ -224,6 +228,8 @@ button:focus-visible, input:focus-visible {
 }
 .answer-button:hover { border-color: hsl(var(--answer-color)); background: hsl(var(--muted)); transform: translateY(-2px); }
 .answer-button:active { transform: translateY(0); }
+.answer-button:disabled { cursor: default; opacity: .65; transform: none; }
+.answer-button.is-correct-answer { border-color: hsl(var(--answer-color)); background: hsl(var(--answer-color) / .16); box-shadow: 0 0 0 2px hsl(var(--answer-color) / .18); opacity: 1; }
 .answer-swatch { width: 10px; height: 10px; border-radius: 3px; background: hsl(var(--answer-color)); }
 .streak-line { min-height: 29px; margin-top: 16px; font-family: var(--app-font-mono); font-size: .74rem; color: hsl(var(--accent)); }
 .overlay {
@@ -265,12 +271,14 @@ button:focus-visible, input:focus-visible {
 .help-list li { display: flex; gap: 12px; color: hsl(var(--muted-foreground)); font-size: .9rem; line-height: 1.4; }
 .keycap { flex: 0 0 auto; display: inline-grid; place-items: center; min-width: 27px; height: 25px; padding: 0 7px; border: 1px solid hsl(var(--border)); border-radius: 5px; background: hsl(var(--muted)); color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .69rem; }
 .pause-note { text-align: center; color: hsl(var(--muted-foreground)); font-size: .76rem; margin-top: 20px; }
-.toast-feedback { position: fixed; z-index: 28; left: 50%; bottom: 35px; transform: translateX(-50%); padding: 10px 15px; border-radius: 8px; background: hsl(var(--foreground)); color: hsl(var(--background)); font-family: var(--app-font-mono); font-size: .75rem; animation: feedback-up .8s ease both; pointer-events: none; }
+.toast-feedback { position: fixed; z-index: 28; left: 50%; bottom: 35px; transform: translateX(-50%); max-width: min(520px, calc(100% - 32px)); padding: 10px 15px; border-radius: 8px; background: hsl(var(--foreground)); color: hsl(var(--background)); font-family: var(--app-font-mono); font-size: .75rem; animation: feedback-once var(--feedback-duration, 650ms) ease both; pointer-events: none; }
+.toast-feedback.is-good { border: 1px solid hsl(var(--secondary) / .55); }
+.toast-feedback.is-bad, .toast-feedback.is-neutral { border: 1px solid hsl(var(--primary) / .45); }
 
 @keyframes count-pop { 0% { opacity: 0; transform: scale(.65); } 30% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.08); } }
 @keyframes shift-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes banner-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
-@keyframes feedback-up { 0% { opacity: 0; transform: translate(-50%, 12px); } 20%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -8px); } }
+@keyframes feedback-once { 0% { opacity: 0; transform: translate(-50%, 8px); } 16%, 78% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -4px); } }
 @media (max-width: 820px) {
   .screen-shell { width: min(100% - 32px, 620px); padding-top: 18px; }
   .landing-grid, .results-layout { grid-template-columns: 1fr; gap: 46px; min-height: auto; padding: 65px 0 44px; }

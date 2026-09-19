@@ -21,7 +21,8 @@ import NotFound from "@/pages/not-found";
 
 type Screen = "home" | "countdown" | "practice" | "playing" | "results";
 type SessionKind = "practice" | "game";
-type Feedback = { text: string; kind: "good" | "bad" | "neutral" };
+type RoundPhase = "waiting" | "active" | "resolving" | "shift_announcement";
+type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral"; duration: number };
 type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; promptAt: number; deadline: number };
 type LeaderboardEntry = { name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
 type ColorName = "RED" | "BLUE" | "GREEN" | "YELLOW" | "ORANGE" | "PURPLE";
@@ -37,6 +38,18 @@ const COLORS: Record<ColorName, { label: string; css: string }> = {
 const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
 const BOARD_KEY = "flash-focus-top-ten";
 const NAME_KEY = "flash-focus-player-name";
+const FRIENDLY_FEEDBACK = [
+  "Classic Stroop trap!",
+  "The word won that round.",
+  "That signal was sneaky.",
+  "Quick reset — focus again.",
+  "Nearly! The ink had the final say.",
+  "A tiny detour. Back in focus.",
+  "The colors crossed their signals.",
+  "That shift caught you — next one!",
+  "Your eyes and the word disagreed.",
+  "Reset. Refocus. Go again.",
+];
 
 function safeReadBoard(): LeaderboardEntry[] {
   try {
@@ -91,12 +104,15 @@ function currentTier(streak: number) {
 }
 
 function answerWindow(elapsed: number, score: number, streak: number) {
-  return Math.max(700, 1700 - Math.min(500, elapsed * 4 + score / 30 + streak * 7));
+  void score;
+  void streak;
+  return Math.max(1700, 3000 - (Math.min(60, elapsed) / 60) * 1300);
 }
 
 function randomRound(shifted: boolean, elapsed = 0, score = 0, streak = 0): Round {
   const word = randomColor();
-  const matches = Math.random() < 0.3;
+  const matchChance = Math.max(0.2, 0.35 - (Math.min(60, elapsed) / 60) * 0.15);
+  const matches = Math.random() < matchChance;
   const color = matches ? word : randomColor(word);
   const optionCount = Math.min(6, 4 + Math.floor(Math.min(2, elapsed / 20)));
   const distractors = COLOR_NAMES.filter((item) => item !== (shifted ? word : color)).sort(() => Math.random() - 0.5);
@@ -192,7 +208,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close help" data-testid="button-close-help"><X size={17} /></button>
         </div>
-        <p><strong>Tap the COLOR you see — not the word you read.</strong> During a BORDERLESS SHIFT, the rule reverses for one round: read the word and ignore the ink.</p>
+        <p><strong>Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.</strong></p>
         <ul className="help-list">
           <li><span className="keycap">1—6</span><span>Choose a color with your keyboard, or tap a color button.</span></li>
           <li><span className="keycap">P</span><span>Pause or resume at any time. The cabinet also pauses if you leave the tab.</span></li>
@@ -246,7 +262,7 @@ function HomeScreen({
           <h2 className="hero-subtitle">A Borderless Thinking Challenge</h2>
           <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
           <p>Across Al-Futtaim, every day brings changing information, competing signals and fast decisions. Flash Focus puts your focus and adaptability to the test.</p>
-          <div className="rule-line">Tap the COLOR you see — not the word you read.</div>
+          <div className="rule-line">Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.</div>
           <p className="signal-line">Different signals. One clear decision.</p>
           <form className="name-form" onSubmit={(event) => { event.preventDefault(); onStart(); }}>
             <label htmlFor="player-name">Player name</label>
@@ -311,6 +327,8 @@ function GameScreen({
   banner,
   feedback,
   lastAnswer,
+  phase,
+  resolvedCorrect,
   sessionKind,
 }: {
   round: Round | null;
@@ -334,6 +352,8 @@ function GameScreen({
   banner: boolean;
   feedback: Feedback | null;
   lastAnswer: "good" | "bad" | null;
+  phase: RoundPhase;
+  resolvedCorrect: ColorName | null;
   sessionKind: SessionKind;
 }) {
   const percentage = duration ? Math.max(0, Math.min(1, remaining / duration)) : 0;
@@ -361,7 +381,10 @@ function GameScreen({
         <section className="round-panel" aria-live="polite">
           <div className="round-meta">
             <span className="round-counter" data-testid="text-round-counter">{sessionKind === "practice" ? "practice / 05 seconds" : `round ${String(total + 1).padStart(2, "0")}`}</span>
-            {round?.shifted && <span className="shift-pill" data-testid="badge-shift">READ THE WORD</span>}
+            <span className={round?.shifted ? "shift-pill" : "mode-pill"} data-testid="badge-mode">
+              <strong>{round?.shifted ? "READ THE WORD" : "NORMAL"}</strong>
+              {!round?.shifted && <span>SELECT THE INK COLOR</span>}
+            </span>
           </div>
           <div className={`challenge-card ${lastAnswer === "good" ? "is-correct" : lastAnswer === "bad" ? "is-wrong" : ""}`} data-testid="challenge-card">
             {round && <span className="challenge-word" style={{ color: `hsl(${COLORS[round.color].css})` }} data-testid="text-challenge-word">{COLORS[round.word].label.toUpperCase()}</span>}
@@ -369,7 +392,15 @@ function GameScreen({
           <p className="answer-copy">{round?.shifted ? "READ THE WORD" : "SELECT THE INK COLOR"}</p>
           <div className="answer-grid" role="group" aria-label="Color answers">
             {(round?.options ?? []).map((color, index) => (
-              <button key={color} className="answer-button" style={{ "--answer-color": COLORS[color].css } as CSSProperties} onClick={() => onAnswer(color)} data-testid={`button-answer-${color.toLowerCase()}`} aria-label={`Answer ${COLORS[color].label}`}>
+              <button
+                key={color}
+                className={`answer-button ${phase === "resolving" && color === resolvedCorrect ? "is-correct-answer" : ""}`}
+                style={{ "--answer-color": COLORS[color].css } as CSSProperties}
+                onClick={() => onAnswer(color)}
+                disabled={phase !== "active" || paused}
+                data-testid={`button-answer-${color.toLowerCase()}`}
+                aria-label={`Answer ${COLORS[color].label}`}
+              >
                 <span className="answer-swatch" aria-hidden="true" />{index + 1}. {COLORS[color].label}
               </button>
             ))}
@@ -378,8 +409,17 @@ function GameScreen({
           {sessionKind === "practice" && <p className="pause-note">Practice does not count toward your score.</p>}
         </section>
       </main>
-      {banner && <div className="shift-banner" data-testid="banner-shift"><strong>BORDERLESS SHIFT!</strong><span>The rule just changed. Adapt.</span></div>}
-      {feedback && <div className="toast-feedback" key={`${feedback.text}-${Date.now()}`} data-testid="text-feedback">{feedback.text}</div>}
+      {banner && <div className="shift-banner" data-testid="banner-shift"><strong>BORDERLESS SHIFT!</strong><span>The rule has changed — now do the opposite.</span></div>}
+      {feedback && (
+        <div
+          className={`toast-feedback is-${feedback.kind}`}
+          key={feedback.id}
+          style={{ "--feedback-duration": `${feedback.duration}ms` } as CSSProperties}
+          data-testid="text-feedback"
+        >
+          {feedback.text}
+        </div>
+      )}
       {paused && (
         <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="paused-title" data-testid="dialog-paused">
           <div className="modal" style={{ textAlign: "center" }}>
@@ -498,6 +538,8 @@ function AppHome() {
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [paused, setPaused] = useState(false);
   const [banner, setBanner] = useState(false);
+  const [phase, setPhase] = useState<RoundPhase>("waiting");
+  const [resolvedCorrect, setResolvedCorrect] = useState<ColorName | null>(null);
   const [lastAnswer, setLastAnswer] = useState<"good" | "bad" | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -511,6 +553,10 @@ function AppHome() {
   const nextShiftAt = useRef(15);
   const ending = useRef(false);
   const answerLocked = useRef(false);
+  const feedbackSequence = useRef(0);
+  const lastFeedbackText = useRef("");
+  const transitionTimer = useRef<number | null>(null);
+  const shiftTimer = useRef<number | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
 
   const setName = (value: string) => setNameState(value.replace(/[^\p{L}\p{N} ._'’-]/gu, "").slice(0, 18));
@@ -521,6 +567,11 @@ function AppHome() {
       setSoundOn(localStorage.getItem("flash-focus-sound") === "on");
     } catch { /* unavailable storage */ }
     setLeaderboard(safeReadBoard());
+  }, []);
+
+  useEffect(() => () => {
+    if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
+    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
   }, []);
 
   useEffect(() => {
@@ -564,7 +615,11 @@ function AppHome() {
     setCountdown(3); setScreen("countdown"); playTone("start");
     setScore(0); setStreak(0); setBestStreak(0); setTotal(0); setCorrect(0); setIncorrect(0); setTimeouts(0);
     setCompletedShifts(0); setMoments(0); setReactionTimes([]); setLeaderboardPosition(null);
+    if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
+    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
+    transitionTimer.current = null; shiftTimer.current = null;
     setRemaining(kind === "practice" ? 5 : 60); setRound(null); setLastAnswer(null); setFeedback(null);
+    setPhase("waiting"); setResolvedCorrect(null);
     activeElapsed.current = 0; nextShiftAt.current = 15; answerLocked.current = false; setBanner(false);
     try { localStorage.setItem(NAME_KEY, cleanName); } catch { /* optional */ }
   };
@@ -579,6 +634,7 @@ function AppHome() {
           lastTickAt.current = performance.now();
           setRemaining(sessionKind === "practice" ? 5 : 60);
           setRound(randomRound(false, 0, 0, 0));
+          setPhase("active");
           setScreen(sessionKind === "practice" ? "practice" : "playing");
           return 0;
         }
@@ -592,6 +648,10 @@ function AppHome() {
   const finishSession = useCallback(() => {
     if (ending.current) return;
     ending.current = true;
+    if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
+    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
+    transitionTimer.current = null; shiftTimer.current = null;
+    setFeedback(null); setPhase("waiting");
     if (sessionKind === "practice") {
       setScreen("home"); setPracticeNotice(true); setRound(null); return;
     }
@@ -621,27 +681,50 @@ function AppHome() {
 
   const showNextRound = useCallback((shifted = false) => {
     answerLocked.current = false;
+    setFeedback(null);
+    setResolvedCorrect(null);
+    setLastAnswer(null);
     setRound(randomRound(shifted, activeElapsed.current, score, streak));
+    setPhase("active");
   }, [score, streak]);
 
+  const pickFriendlyFeedback = useCallback(() => {
+    const choices = FRIENDLY_FEEDBACK.filter((message) => message !== lastFeedbackText.current);
+    const message = choices[Math.floor(Math.random() * choices.length)];
+    lastFeedbackText.current = message;
+    return message;
+  }, []);
+
+  const resolveAndAdvance = useCallback((text: string, kind: Feedback["kind"], duration: number) => {
+    if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
+    feedbackSequence.current += 1;
+    setPhase("resolving");
+    setFeedback({ id: feedbackSequence.current, text, kind, duration });
+    transitionTimer.current = window.setTimeout(() => {
+      transitionTimer.current = null;
+      setFeedback(null);
+      showNextRound(false);
+    }, duration);
+  }, [showNextRound]);
+
   const handleTimeout = useCallback(() => {
-    if (!round || answerLocked.current || paused || banner) return;
+    if (!round || answerLocked.current || paused || phase !== "active") return;
     answerLocked.current = true;
     setLastAnswer(null);
+    setResolvedCorrect(round.shifted ? round.word : round.color);
     if (sessionKind === "practice") {
-      setFeedback({ text: "Time’s up — choose the ink color.", kind: "neutral" });
       playTone("bad");
-      window.setTimeout(() => showNextRound(false), 180);
+      resolveAndAdvance("Time’s up — choose the ink color.", "neutral", 650);
       return;
     }
     setTotal((value) => value + 1);
     setTimeouts((value) => value + 1);
     setStreak(0);
     if (round.shifted) setCompletedShifts((value) => value + 1);
-    setFeedback({ text: "Quick reset — focus again.", kind: "neutral" });
     playTone("bad");
-    window.setTimeout(() => showNextRound(false), 180);
-  }, [banner, paused, playTone, round, sessionKind, showNextRound]);
+    const message = pickFriendlyFeedback();
+    resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message}` : message, "neutral", 650);
+  }, [paused, phase, pickFriendlyFeedback, playTone, resolveAndAdvance, round, sessionKind]);
 
   useEffect(() => {
     if (screen !== "playing" && screen !== "practice") return;
@@ -651,28 +734,32 @@ function AppHome() {
       const now = performance.now();
       const delta = (now - lastTickAt.current) / 1000;
       lastTickAt.current = now;
-      if (paused || banner) return;
+      if (paused || phase === "shift_announcement") return;
       activeElapsed.current = Math.min(duration, activeElapsed.current + delta);
       const elapsed = activeElapsed.current;
       const next = Math.max(0, duration - elapsed);
       setRemaining(next);
-      if (round && elapsed * 1000 >= round.deadline) handleTimeout();
-      if (sessionKind === "game" && elapsed >= nextShiftAt.current && nextShiftAt.current <= 45 && !answerLocked.current) {
+      if (phase === "active" && round && elapsed * 1000 >= round.deadline) handleTimeout();
+      if (phase === "active" && sessionKind === "game" && elapsed >= nextShiftAt.current && nextShiftAt.current <= 45 && !answerLocked.current) {
         answerLocked.current = true;
         setRound(null);
+        setPhase("shift_announcement");
         setBanner(true);
         playTone("shift");
         nextShiftAt.current += 15;
-        window.setTimeout(() => {
+        if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
+        shiftTimer.current = window.setTimeout(() => {
+          shiftTimer.current = null;
           setBanner(false);
           answerLocked.current = false;
           setRound(randomRound(true, activeElapsed.current, score, streak));
-        }, 2000);
+          setPhase("active");
+        }, 1800);
       }
       if (elapsed >= duration) finishSession();
     }, 80);
     return () => window.clearInterval(timer);
-  }, [banner, finishSession, handleTimeout, paused, playTone, round, score, screen, sessionKind, streak]);
+  }, [finishSession, handleTimeout, paused, phase, playTone, round, score, screen, sessionKind, streak]);
 
   useEffect(() => {
     if (screen !== "playing" && screen !== "practice") return;
@@ -705,18 +792,17 @@ function AppHome() {
   });
 
   const handleAnswer = (answer: ColorName) => {
-    if (!round || paused || (screen !== "playing" && screen !== "practice")) return;
-    if (answerLocked.current || banner) return;
+    if (!round || paused || phase !== "active" || (screen !== "playing" && screen !== "practice")) return;
+    if (answerLocked.current) return;
     answerLocked.current = true;
     const reaction = Math.max(0, activeElapsed.current * 1000 - round.promptAt);
     const expected = round.shifted ? round.word : round.color;
     const isCorrect = answer === expected;
+    setResolvedCorrect(expected);
     setLastAnswer(isCorrect ? "good" : "bad");
-    window.setTimeout(() => setLastAnswer(null), 180);
     if (sessionKind === "practice") {
-      setFeedback({ text: isCorrect ? `${Math.round(reaction)} ms · correct` : "Not quite — follow the ink.", kind: isCorrect ? "good" : "bad" });
       playTone(isCorrect ? "good" : "bad");
-      window.setTimeout(() => showNextRound(false), 180);
+      resolveAndAdvance(isCorrect ? `${Math.round(reaction)} ms · correct` : pickFriendlyFeedback(), isCorrect ? "good" : "bad", isCorrect ? 280 : 650);
       return;
     }
     setTotal((value) => value + 1); setReactionTimes((values) => [...values, reaction]);
@@ -730,18 +816,20 @@ function AppHome() {
       setScore((value) => value + earned); setCorrect((value) => value + 1); setStreak(nextStreak); setBestStreak((value) => Math.max(value, nextStreak));
       if (round.shifted) setCompletedShifts((value) => value + 1);
       if (borderlessMoment) setMoments((value) => value + 1);
-      setFeedback({
-        text: borderlessMoment ? "BORDERLESS MOMENT! Perfect adaptation · +50" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
-        kind: "good",
-      });
       playTone("good");
+      resolveAndAdvance(
+        borderlessMoment ? "BORDERLESS MOMENT! Perfect adaptation · +50 · SHIFT COMPLETE" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
+        "good",
+        borderlessMoment ? 650 : 280,
+      );
     } else {
       setIncorrect((value) => value + 1);
       if (round.shifted) setCompletedShifts((value) => value + 1);
-      const messages = ["Classic Stroop trap!", "The word won that round.", "That signal was sneaky.", "Quick reset — focus again.", "The colors crossed their signals."];
-      setStreak(0); setFeedback({ text: messages[Math.floor(Math.random() * messages.length)], kind: "bad" }); playTone("bad");
+      setStreak(0);
+      playTone("bad");
+      const message = pickFriendlyFeedback();
+      resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message}` : message, "bad", 650);
     }
-    window.setTimeout(() => showNextRound(false), 180);
   };
 
   const toggleFullscreen = () => {
@@ -757,13 +845,17 @@ function AppHome() {
     }
     beginCountdown(sessionKind);
   };
-  const home = () => { setScreen("home"); setPaused(false); setRound(null); setFeedback(null); };
+  const home = () => {
+    if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
+    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
+    setScreen("home"); setPaused(false); setRound(null); setFeedback(null); setPhase("waiting");
+  };
 
   return (
     <>
       {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} practiceNotice={practiceNotice} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
-      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} sessionKind={sessionKind} />}
+      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} />}
       {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </>
