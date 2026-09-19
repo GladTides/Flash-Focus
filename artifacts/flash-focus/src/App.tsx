@@ -22,8 +22,8 @@ import NotFound from "@/pages/not-found";
 type Screen = "home" | "countdown" | "practice" | "playing" | "results";
 type SessionKind = "practice" | "game";
 type RoundPhase = "waiting" | "active" | "resolving" | "shift_announcement";
-type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral"; duration: number };
-type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "shift" | "moment" | "end" | "click" | "start";
+type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral" | "moment"; duration: number };
+type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "highStreak" | "shift" | "moment" | "end" | "click" | "start";
 type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; promptAt: number; deadline: number };
 type LeaderboardEntry = { name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
 type ColorName = "RED" | "BLUE" | "GREEN" | "YELLOW" | "ORANGE" | "PURPLE";
@@ -204,7 +204,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
       <div className="modal">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
           <div>
-            <span className="eyebrow">quick briefing</span>
+            <span className="eyebrow">how to play</span>
             <h2 id="help-title">QUICK BRIEFING</h2>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close help" data-testid="button-close-help"><X size={17} /></button>
@@ -415,7 +415,16 @@ function GameScreen({
           style={{ "--feedback-duration": `${feedback.duration}ms` } as CSSProperties}
           data-testid="text-feedback"
         >
-          {feedback.text}
+          {feedback.kind === "moment" && (
+            <span className="moment-particles" aria-hidden="true">
+              {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ "--particle-index": index } as CSSProperties} />)}
+            </span>
+          )}
+          <span className="feedback-copy">
+            {feedback.text.split("\n").map((line, index) => (
+              <span className={line === "+50 BONUS" ? "bonus-line" : ""} key={`${feedback.id}-${index}`}>{line}</span>
+            ))}
+          </span>
         </div>
       )}
       {paused && (
@@ -664,6 +673,10 @@ function AppHome() {
         case "streak":
           scheduleTone(300, 720, 0.17, 0, "triangle", 0.25);
           break;
+        case "highStreak":
+          scheduleTone(540, 820, 0.11, 0, "triangle", 0.27);
+          scheduleTone(620, 960, 0.11, 0.095, "triangle", 0.24);
+          break;
         case "shift":
           scheduleNoise(0.28, 0, 0.34);
           break;
@@ -687,9 +700,24 @@ function AppHome() {
     } catch { /* audio permission or browser support failure */ }
   }, [soundOn]);
 
+  useEffect(() => {
+    const playButtonClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest("button");
+      if (!button || button.matches('[data-testid^="button-answer-"]')) return;
+      playTone("click");
+    };
+    document.addEventListener("pointerdown", playButtonClick);
+    return () => document.removeEventListener("pointerdown", playButtonClick);
+  }, [playTone]);
+
   const toggleSound = () => {
     setSoundOn((value) => {
       const next = !value;
+      if (audioMasterGain.current && audioContext.current) {
+        audioMasterGain.current.gain.setValueAtTime(next ? 0.72 : 0, audioContext.current.currentTime);
+      }
       try { localStorage.setItem("flash-focus-sound", next ? "on" : "off"); } catch { /* optional */ }
       return next;
     });
@@ -743,6 +771,7 @@ function AppHome() {
     if (sessionKind === "practice") {
       setScreen("home"); setPracticeNotice(true); setRound(null); return;
     }
+    playTone("end");
     const avg = reactionTimes.length ? reactionTimes.reduce((sum, value) => sum + value, 0) / reactionTimes.length : 0;
     setAverage(avg);
     const accuracy = total ? Math.round((correct / total) * 100) : 0;
@@ -765,7 +794,7 @@ function AppHome() {
     const position = updated.findIndex((item) => item.name.trim().toLocaleLowerCase() === normalized);
     setLeaderboardPosition(position >= 0 ? position + 1 : null);
     setLeaderboard(updated); safeWriteBoard(updated); setScreen("results"); setRound(null);
-  }, [bestStreak, correct, leaderboard, moments, name, reactionTimes, score, sessionKind, total]);
+  }, [bestStreak, correct, leaderboard, moments, name, playTone, reactionTimes, score, sessionKind, total]);
 
   const showNextRound = useCallback((shifted = false) => {
     answerLocked.current = false;
@@ -801,7 +830,7 @@ function AppHome() {
     setLastAnswer(null);
     setResolvedCorrect(round.shifted ? round.word : round.color);
     if (sessionKind === "practice") {
-      playTone("bad");
+      playTone("timeout");
       resolveAndAdvance("Time’s up — choose the ink color.", "neutral", 650);
       return;
     }
@@ -809,7 +838,7 @@ function AppHome() {
     setTimeouts((value) => value + 1);
     setStreak(0);
     if (round.shifted) setCompletedShifts((value) => value + 1);
-    playTone("bad");
+    playTone("timeout");
     const message = pickFriendlyFeedback();
     resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message}` : message, "neutral", 650);
   }, [paused, phase, pickFriendlyFeedback, playTone, resolveAndAdvance, round, sessionKind]);
@@ -889,7 +918,7 @@ function AppHome() {
     setResolvedCorrect(expected);
     setLastAnswer(isCorrect ? "good" : "bad");
     if (sessionKind === "practice") {
-      playTone(isCorrect ? "good" : "bad");
+      playTone(isCorrect ? "correct" : "incorrect");
       resolveAndAdvance(isCorrect ? `${Math.round(reaction)} ms · correct` : pickFriendlyFeedback(), isCorrect ? "good" : "bad", isCorrect ? 280 : 650);
       return;
     }
@@ -904,17 +933,18 @@ function AppHome() {
       setScore((value) => value + earned); setCorrect((value) => value + 1); setStreak(nextStreak); setBestStreak((value) => Math.max(value, nextStreak));
       if (round.shifted) setCompletedShifts((value) => value + 1);
       if (borderlessMoment) setMoments((value) => value + 1);
-      playTone("good");
+      const reachedNewTier = currentMultiplier(nextStreak) > currentMultiplier(streak);
+      playTone(borderlessMoment ? "moment" : reachedNewTier ? "streak" : nextStreak >= 15 ? "highStreak" : "correct");
       resolveAndAdvance(
-        borderlessMoment ? "BORDERLESS MOMENT! Perfect adaptation · +50 · SHIFT COMPLETE" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
-        "good",
-        borderlessMoment ? 650 : 280,
+        borderlessMoment ? "BORDERLESS MOMENT!\nYou adapted to the rule change.\n+50 BONUS" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
+        borderlessMoment ? "moment" : "good",
+        borderlessMoment ? 850 : 280,
       );
     } else {
       setIncorrect((value) => value + 1);
       if (round.shifted) setCompletedShifts((value) => value + 1);
       setStreak(0);
-      playTone("bad");
+      playTone("incorrect");
       const message = pickFriendlyFeedback();
       resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message}` : message, "bad", 650);
     }
