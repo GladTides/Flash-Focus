@@ -40,16 +40,28 @@ const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
 const BOARD_KEY = "flash-focus-top-ten";
 const NAME_KEY = "flash-focus-player-name";
 const FRIENDLY_FEEDBACK = [
-  "Classic Stroop trap!",
-  "The word won that round.",
-  "That signal was sneaky.",
-  "Quick reset — focus again.",
-  "Nearly! The ink had the final say.",
-  "A tiny detour. Back in focus.",
-  "The colors crossed their signals.",
-  "That shift caught you — next one!",
-  "Your eyes and the word disagreed.",
-  "Reset. Refocus. Go again.",
+  { text: "Classic Stroop trap!", voice: "Classic Stroop moment." },
+  { text: "The word won that round.", voice: "The word fooled you." },
+  { text: "That signal was sneaky.", voice: "That one gets everybody." },
+  { text: "Quick reset — focus again.", voice: "Nice try, stay focused." },
+  { text: "Nearly! The ink had the final say.", voice: "The ink had the final say." },
+  { text: "A tiny detour. Back in focus.", voice: "Tiny detour. Back in focus." },
+  { text: "The colors crossed their signals.", voice: "The colors crossed their signals." },
+  { text: "That shift caught you — next one!", voice: "That shift caught you. Next one." },
+  { text: "Your eyes and the word disagreed.", voice: "Your eyes and the word disagreed." },
+  { text: "Reset. Refocus. Go again.", voice: "Reset. Refocus. Go again." },
+  { text: "The letters were very convincing.", voice: "The letters were very convincing." },
+  { text: "Your brain took the shortcut.", voice: "Your brain took the shortcut." },
+  { text: "The color was hiding in plain sight.", voice: "The color was hiding in plain sight." },
+  { text: "A cheeky little color mix-up.", voice: "A cheeky little color mix-up." },
+  { text: "That was a sneaky word costume.", voice: "That was a sneaky word costume." },
+];
+const CORRECT_VOICE_FEEDBACK = [
+  "Nice catch!",
+  "Sharp eyes!",
+  "You saw it.",
+  "Clean decision.",
+  "Right on target.",
 ];
 
 function safeReadBoard(): LeaderboardEntry[] {
@@ -700,6 +712,21 @@ function AppHome() {
     } catch { /* audio permission or browser support failure */ }
   }, [soundOn]);
 
+  const speakFeedback = useCallback((text: string) => {
+    if (!soundOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = 1.1;
+      utterance.pitch = 1.04;
+      utterance.volume = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Speech synthesis is optional and can be blocked by the browser.
+    }
+  }, [soundOn]);
+
   useEffect(() => {
     const playButtonClick = (event: PointerEvent) => {
       const target = event.target;
@@ -806,9 +833,9 @@ function AppHome() {
   }, [score, streak]);
 
   const pickFriendlyFeedback = useCallback(() => {
-    const choices = FRIENDLY_FEEDBACK.filter((message) => message !== lastFeedbackText.current);
-    const message = choices[Math.floor(Math.random() * choices.length)];
-    lastFeedbackText.current = message;
+    const choices = FRIENDLY_FEEDBACK.filter((message) => message.text !== lastFeedbackText.current);
+    const message = choices[Math.floor(Math.random() * choices.length)] ?? FRIENDLY_FEEDBACK[0];
+    lastFeedbackText.current = message.text;
     return message;
   }, []);
 
@@ -831,6 +858,7 @@ function AppHome() {
     setResolvedCorrect(round.shifted ? round.word : round.color);
     if (sessionKind === "practice") {
       playTone("timeout");
+      speakFeedback("Time's up. Choose the ink color.");
       resolveAndAdvance("Time’s up — choose the ink color.", "neutral", 650);
       return;
     }
@@ -840,8 +868,9 @@ function AppHome() {
     if (round.shifted) setCompletedShifts((value) => value + 1);
     playTone("timeout");
     const message = pickFriendlyFeedback();
-    resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message}` : message, "neutral", 650);
-  }, [paused, phase, pickFriendlyFeedback, playTone, resolveAndAdvance, round, sessionKind]);
+    speakFeedback(message.voice);
+    resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message.text}` : message.text, "neutral", 650);
+  }, [paused, phase, pickFriendlyFeedback, playTone, resolveAndAdvance, round, sessionKind, speakFeedback]);
 
   useEffect(() => {
     if (screen !== "playing" && screen !== "practice") return;
@@ -919,7 +948,14 @@ function AppHome() {
     setLastAnswer(isCorrect ? "good" : "bad");
     if (sessionKind === "practice") {
       playTone(isCorrect ? "correct" : "incorrect");
-      resolveAndAdvance(isCorrect ? `${Math.round(reaction)} ms · correct` : pickFriendlyFeedback(), isCorrect ? "good" : "bad", isCorrect ? 280 : 650);
+      if (isCorrect) {
+        if (Math.random() < 0.35) speakFeedback(CORRECT_VOICE_FEEDBACK[Math.floor(Math.random() * CORRECT_VOICE_FEEDBACK.length)]);
+        resolveAndAdvance(`${Math.round(reaction)} ms · correct`, "good", 280);
+      } else {
+        const message = pickFriendlyFeedback();
+        speakFeedback(message.voice);
+        resolveAndAdvance(message.text, "bad", 650);
+      }
       return;
     }
     setTotal((value) => value + 1); setReactionTimes((values) => [...values, reaction]);
@@ -935,6 +971,8 @@ function AppHome() {
       if (borderlessMoment) setMoments((value) => value + 1);
       const reachedNewTier = currentMultiplier(nextStreak) > currentMultiplier(streak);
       playTone(borderlessMoment ? "moment" : reachedNewTier ? "streak" : nextStreak >= 15 ? "highStreak" : "correct");
+      if (borderlessMoment) speakFeedback("Borderless moment! You adapted.");
+      else if (Math.random() < 0.2) speakFeedback(CORRECT_VOICE_FEEDBACK[Math.floor(Math.random() * CORRECT_VOICE_FEEDBACK.length)]);
       resolveAndAdvance(
         borderlessMoment ? "BORDERLESS MOMENT!\nYou adapted to the rule change.\n+50 BONUS" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
         borderlessMoment ? "moment" : "good",
@@ -946,7 +984,8 @@ function AppHome() {
       setStreak(0);
       playTone("incorrect");
       const message = pickFriendlyFeedback();
-      resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message}` : message, "bad", 650);
+      speakFeedback(message.voice);
+      resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message.text}` : message.text, "bad", 650);
     }
   };
 

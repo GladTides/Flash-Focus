@@ -1,0 +1,143 @@
+Flash Focus – Complete Game Development Prompt
+Create a polished, production-quality browser game called Flash Focus using HTML, CSS, and JavaScript in a single self-contained file. The game must run smoothly on modern desktop browsers without external libraries, frameworks, or internet access.
+Core Concept
+Flash Focus is a single-player attention and reaction game based on the classic Stroop Effect.
+The player must identify the COLOR they see, not the word they read.
+The experience should feel like a fast-paced arcade game mixed with a light cognitive-training challenge.
+Visual Design
+Design for a 16:9 desktop monitor.
+Requirements:
+Large, bold typography readable from several meters away.
+Bright, vivid color palette.
+Clean modern UI.
+High contrast and accessibility-friendly.
+Smooth animations and transitions.
+Responsive layout that scales across desktop resolutions.
+Professional and fun visual style.
+Start Screen
+Before the game begins:
+Player Name
+Ask the player to enter their name.
+Validation rules:
+Trim leading and trailing spaces.
+Reject empty entries.
+Maximum length: 18 characters.
+Preserve the name for replay sessions.
+Instruction
+Display:
+Tap the COLOR you see — not the word you read.
+Practice Option
+Offer:
+Start Game
+5-Second Practice Round
+Skip Practice
+Leaderboard Preview
+Display the persistent Top 10 leaderboard.
+Gameplay
+Color Words
+Randomly display one of:
+RED
+BLUE
+GREEN
+YELLOW
+ORANGE
+PURPLE
+Ink Colors
+The displayed ink color should:
+Mismatch the word 70% of the time.
+Match the word 30% of the time.
+Answer Choices
+Display 4–6 clickable color swatches.
+The player must select:
+Normal Play
+The COLOR of the ink.
+Example:
+Word: RED
+Ink: BLUE
+Correct answer: BLUE
+Reverse Play
+The COLOR represented by the word.
+Example:
+Word: RED
+Ink: BLUE
+Correct answer: RED
+Timer
+Game duration:
+Fixed 60-second session.
+Display:
+Large visible countdown.
+Current score.
+Current streak.
+Active multiplier.
+No:
+Lives
+Health
+Early game-over states
+Always allow play until time expires.
+Scoring
+For each correct answer:
+Base Score:
+10 points
+Speed Bonus:
+0–15 additional points
+Requirements:
+Faster reactions earn more bonus points.
+Display a floating score popup.
+Streak and Multiplier System
+Every 5 consecutive correct answers increases multiplier.
+Consecutive Correct	Multiplier0–4	x1
+5–9	x1.5
+10–14	x2
+15–19	x2.5
+20+	x3
+Rules:
+Multiplier affects future correct-answer scoring.
+Wrong answers reset streak.
+Timeouts reset streak.
+Wrong answers reset multiplier.
+Timeouts reset multiplier.
+Progressive Difficulty
+As the player performs better:
+Increase challenge by:
+Increasing color options from 4 up to 6.
+Slightly reducing available response time.
+Maintaining fairness and readability.
+Funny Feedback System
+The game should provide feedback using:
+Text
+Sound
+Voice
+all at the same time.
+Incorrect Answer Feedback
+When the player answers incorrectly:
+On-Screen Text
+Display a short humorous message.
+Examples:
+Your brain read the word again!
+The word got you that time!
+Classic Stroop trap!
+Everyone falls for that one eventually.
+Your eyes knew, your brain disagreed.
+The letters were very convincing.
+Requirements:
+Pool of at least 15 messages.
+Random selection.
+Never repeat the same message twice in a row.
+Friendly and encouraging.
+Never insulting or mocking.
+Spoken Voice Feedback
+Use the browser's built-in Web Speech API (SpeechSynthesis).
+Requirements:
+No external audio files.
+Voice clips under 2 seconds.
+Natural conversational tone.
+Random voice message from the same pool.
+Prevent repetition of the previous voice line.
+Example spoken responses:
+"The word fooled you."
+"That one gets everybody."
+"Nice try, stay focused."
+"Classic Stroop moment."
+"Your brain took the shortcut."
+Correct Answer Voice Feedback
+Occasionally provide short spoken encouragement.
