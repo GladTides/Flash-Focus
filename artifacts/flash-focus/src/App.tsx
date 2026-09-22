@@ -18,6 +18,15 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import {
+  competitionApiConfigured,
+  deleteSharedLeaderboardEntry,
+  loadSharedLeaderboard,
+  startSecureSession,
+  submitSecureScore,
+  type LeaderboardScope,
+  type RoundAttemptPayload,
+} from "./lib/competition-api";
 
 type Screen = "home" | "countdown" | "practice" | "playing" | "results";
 type SessionKind = "practice" | "game";
@@ -26,6 +35,7 @@ type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral" | "
 type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "highStreak" | "shift" | "moment" | "end" | "click" | "start";
 type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; promptAt: number; deadline: number };
 type LeaderboardEntry = { name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
+type LeaderboardStatus = "loading" | "ready" | "offline" | "error";
 type ColorName = "RED" | "BLUE" | "GREEN" | "YELLOW" | "ORANGE" | "PURPLE";
 
 const COLORS: Record<ColorName, { label: string; css: string }> = {
@@ -40,6 +50,11 @@ const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
 const BOARD_KEY = "flash-focus-top-ten";
 const NAME_KEY = "flash-focus-player-name";
 const APP_DISCLAIMER = "Flash Focus is designed for learning, engagement, and entertainment purposes only. Results should not be interpreted as measures of intelligence, aptitude, cognitive ability, or job performance.";
+const APP_CONFIG = {
+  competitionSlug: "flash-focus-2026",
+  organizationName: "Al-Futtaim",
+  independentNotice: "Flash Focus is an independent innovation competition prototype developed by Mubashshir Ahmed. It is not an official production application unless formally adopted.",
+};
 const FRIENDLY_FEEDBACK = [
   { text: "Classic Stroop trap!", voice: "Classic Stroop moment." },
   { text: "The word won that round.", voice: "The word fooled you." },
@@ -72,7 +87,7 @@ function safeReadBoard(): LeaderboardEntry[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((entry) => entry && typeof entry.name === "string" && typeof entry.score === "number")
+      .filter((entry) => entry && typeof entry.name === "string" && isSafeParticipantName(entry.name) && typeof entry.score === "number")
       .map((entry) => ({
         name: String(entry.name).slice(0, 18),
         score: Math.max(0, Math.round(Number(entry.score) || 0)),
@@ -94,6 +109,16 @@ function safeWriteBoard(entries: LeaderboardEntry[]) {
   } catch {
     // Private browsing and blocked storage are valid browser states.
   }
+}
+
+function isSafeParticipantName(value: string) {
+  const name = value.normalize("NFKC").trim();
+  if (!name || name.length > 18 || /[\u0000-\u001f\u007f]/u.test(name)) return false;
+  if (!/^[\p{L}\p{N} ._'’-]+$/u.test(name)) return false;
+  if (/(https?:\/\/|www\.|@|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b)/iu.test(name)) return false;
+  if (/(?:\+?\d[\d ()-]{6,}\d)/u.test(name)) return false;
+  if (/\b(?:employee|emp|staff|worker|associate|id|eid)[-_ ]?\d{4,}\b/iu.test(name)) return false;
+  return true;
 }
 
 function randomColor(exclude?: ColorName): ColorName {
@@ -173,40 +198,94 @@ function Header({
   );
 }
 
-function Leaderboard({ entries, compact = false }: { entries: LeaderboardEntry[]; compact?: boolean }) {
+function Leaderboard({
+  entries,
+  compact = false,
+  status = "ready",
+  error,
+  scope = "top10",
+  onRetry,
+  onScopeChange,
+}: {
+  entries: LeaderboardEntry[];
+  compact?: boolean;
+  status?: LeaderboardStatus;
+  error?: string;
+  scope?: LeaderboardScope;
+  onRetry?: () => void;
+  onScopeChange?: (scope: LeaderboardScope) => void;
+}) {
+  const scopes: Array<{ value: LeaderboardScope; label: string }> = [
+    { value: "top10", label: "Top 10" },
+    { value: "top100", label: "Top 100" },
+    { value: "myRank", label: "My rank" },
+    { value: "thisWeek", label: "This week" },
+    { value: "allTime", label: "All time" },
+  ];
   return (
     <section className={compact ? "leaderboard-preview" : "result-card"} aria-labelledby={compact ? "leaderboard-preview-title" : "leaderboard-title"}>
       <div className="leaderboard-preview-header">
         <div>
           <h2 id={compact ? "leaderboard-preview-title" : "leaderboard-title"}>BORDERLESS FOCUS LEADERBOARD</h2>
-          <p className="micro-copy">Who has the sharpest focus at Al-Futtaim?</p>
+          <p className="micro-copy">Who has the sharpest focus at {APP_CONFIG.organizationName}?</p>
         </div>
         {!compact && <Trophy size={17} color="hsl(var(--accent))" />}
       </div>
-      {entries.length ? (
+      {!compact && onScopeChange && (
+        <div className="leaderboard-tabs" role="tablist" aria-label="Leaderboard views">
+          {scopes.map((item) => (
+            <button
+              key={item.value}
+              className={scope === item.value ? "leaderboard-tab is-active" : "leaderboard-tab"}
+              onClick={() => onScopeChange(item.value)}
+              role="tab"
+              aria-selected={scope === item.value}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {status === "loading" ? (
+        <p className="micro-copy leaderboard-state" data-testid="leaderboard-loading">Loading the shared cabinet…</p>
+      ) : status === "error" ? (
+        <div className="leaderboard-state">
+          <p className="micro-copy" data-testid="leaderboard-error">{error || "The shared cabinet is unavailable."}</p>
+          {onRetry && <button className="quiet-button" type="button" onClick={onRetry}>Try again</button>}
+        </div>
+      ) : status === "offline" && !entries.length ? (
+        <div className="leaderboard-state">
+          <p className="micro-copy">The shared cabinet is offline. Scores will remain on this device until it reconnects.</p>
+          {onRetry && <button className="quiet-button" type="button" onClick={onRetry}>Reconnect</button>}
+        </div>
+      ) : entries.length ? (
         compact ? (
           <ol>
             {entries.slice(0, 3).map((entry, index) => (
               <li key={`${entry.name}-${entry.date}-${index}`} data-testid={`leaderboard-preview-row-${index}`}>
-                <span>{index + 1}. {entry.name}</span><strong>{entry.score.toLocaleString()}</strong>
+                <span>{String(index + 1).padStart(2, "0")} &nbsp; {entry.name}</span><strong>{entry.score.toLocaleString()}</strong>
               </li>
             ))}
           </ol>
         ) : (
           <table className="leaderboard-table" data-testid="leaderboard-table">
+            <thead><tr><th scope="col">Rank / player</th><th scope="col">Score</th><th scope="col">Best streak</th></tr></thead>
             <tbody>
               {entries.map((entry, index) => (
                 <tr key={`${entry.name}-${entry.date}-${index}`} data-testid={`leaderboard-row-${index}`}>
                   <td>{String(index + 1).padStart(2, "0")} &nbsp; {entry.name}</td>
                   <td>{entry.score.toLocaleString()}</td>
+                  <td>{entry.bestStreak}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )
       ) : (
-        <p className="micro-copy" data-testid="empty-leaderboard">The cabinet is waiting for its first score.</p>
+        <p className="micro-copy" data-testid="empty-leaderboard">{status === "offline" ? "No cached scores are available on this device." : "The cabinet is waiting for its first score."}</p>
       )}
+      {status === "offline" && entries.length > 0 && <p className="micro-copy leaderboard-offline-note">Showing this device’s cached cabinet while the shared service reconnects.</p>}
     </section>
   );
 }
@@ -250,6 +329,9 @@ function HomeScreen({
   onFullscreen,
   soundOn,
   leaderboard,
+  leaderboardStatus,
+  leaderboardError,
+  onLeaderboardRetry,
   practiceNotice,
 }: {
   name: string;
@@ -261,6 +343,9 @@ function HomeScreen({
   onFullscreen: () => void;
   soundOn: boolean;
   leaderboard: LeaderboardEntry[];
+  leaderboardStatus: LeaderboardStatus;
+  leaderboardError: string;
+  onLeaderboardRetry: () => void;
   practiceNotice: boolean;
 }) {
   return (
@@ -278,11 +363,13 @@ function HomeScreen({
           <form className="name-form" onSubmit={(event) => { event.preventDefault(); onStart(); }}>
             <label htmlFor="player-name">Player name</label>
             <input id="player-name" className="name-input" maxLength={18} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" data-testid="input-player-name" />
-            <button className="primary-button" type="submit" disabled={!name.trim()} data-testid="button-start-game">START GAME <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
+            <button className="primary-button" type="submit" disabled={!isSafeParticipantName(name)} data-testid="button-start-game">START GAME <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
           </form>
+          <p className="name-note">Use a nickname or first name only. Do not enter an email, employee number, phone number, or legal name.</p>
+          <p className="public-note">{APP_CONFIG.independentNotice} Your nickname and score may be visible to anyone with this competition link.</p>
           <p className="page-disclaimer start-disclaimer">{APP_DISCLAIMER}</p>
           <div className="micro-copy">
-            <button className="quiet-button" type="button" onClick={onPractice} disabled={!name.trim()} data-testid="button-practice"><Eye size={15} /> 5-SECOND PRACTICE ROUND</button>
+            <button className="quiet-button" type="button" onClick={onPractice} disabled={!isSafeParticipantName(name)} data-testid="button-practice"><Eye size={15} /> 5-SECOND PRACTICE ROUND</button>
             <span className="skip-copy">Skip practice by selecting START GAME.</span>
             {practiceNotice && <span style={{ marginLeft: 12, color: "hsl(var(--secondary))" }} data-testid="text-practice-complete">Practice complete. You’re ready.</span>}
           </div>
@@ -291,19 +378,7 @@ function HomeScreen({
             <h2 id="about-flash-focus-title">ABOUT FLASH FOCUS</h2>
             <p>Flash Focus is inspired by the Stroop Effect, a classic psychology experiment demonstrating how automatic word reading competes with color recognition. The game challenges focus, selective attention, and reaction speed through fast-paced color matching challenges.</p>
           </section>
-          <div className="leaderboard-preview">
-            <div className="leaderboard-preview-header">
-              <div><h2>BORDERLESS FOCUS LEADERBOARD</h2><p className="micro-copy">Who has the sharpest focus at Al-Futtaim?</p></div>
-              <span className="eyebrow">local cabinet</span>
-            </div>
-            {leaderboard.length ? (
-              <ol>
-                {leaderboard.slice(0, 3).map((entry, index) => (
-                  <li key={`${entry.name}-${entry.date}-${index}`} data-testid={`home-leaderboard-row-${index}`}><span>{String(index + 1).padStart(2, "0")} &nbsp; {entry.name}</span><strong>{entry.score.toLocaleString()}</strong></li>
-                ))}
-              </ol>
-            ) : <p className="micro-copy">The cabinet is waiting for its first score.</p>}
-          </div>
+          <Leaderboard entries={leaderboard} compact status={leaderboardStatus} error={leaderboardError} onRetry={onLeaderboardRetry} />
         </section>
         <aside className="hero-stamp" aria-label="Flash Focus game preview">
           <div className="stamp-header"><span>signal / response</span><span className="stamp-live">live</span></div>
@@ -476,6 +551,12 @@ function ResultsScreen({
   moments,
   leaderboardPosition,
   leaderboard,
+  leaderboardStatus,
+  leaderboardError,
+  leaderboardScope,
+  onLeaderboardRetry,
+  onLeaderboardScopeChange,
+  onDeleteLeaderboardEntry,
   onRestart,
   onHome,
   onHelp,
@@ -495,6 +576,12 @@ function ResultsScreen({
   moments: number;
   leaderboardPosition: number | null;
   leaderboard: LeaderboardEntry[];
+  leaderboardStatus: LeaderboardStatus;
+  leaderboardError: string;
+  leaderboardScope: LeaderboardScope;
+  onLeaderboardRetry: () => void;
+  onLeaderboardScopeChange: (scope: LeaderboardScope) => void;
+  onDeleteLeaderboardEntry: () => void;
   onRestart: () => void;
   onHome: () => void;
   onHelp: () => void;
@@ -529,6 +616,11 @@ function ResultsScreen({
             <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
             <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
           </div>
+          <div className="public-note results-public-note">
+            {APP_CONFIG.independentNotice} Leaderboard entries are public to anyone with the competition link. You can remove your nickname and entry from this competition.
+            <br />
+            <button className="quiet-button" type="button" onClick={onDeleteLeaderboardEntry}>Remove my leaderboard entry</button>
+          </div>
         </section>
         <aside className="result-card">
           <h2>your readout</h2>
@@ -543,7 +635,14 @@ function ResultsScreen({
             <div className="result-metric"><strong>{moments}</strong><span>Borderless Moments</span></div>
             <div className="result-metric"><strong>{leaderboardPosition ? `#${leaderboardPosition}` : "—"}</strong><span>leaderboard position</span></div>
           </div>
-          <Leaderboard entries={leaderboard} />
+          <Leaderboard
+            entries={leaderboard}
+            status={leaderboardStatus}
+            error={leaderboardError}
+            scope={leaderboardScope}
+            onRetry={onLeaderboardRetry}
+            onScopeChange={onLeaderboardScopeChange}
+          />
         </aside>
         <p className="page-disclaimer results-disclaimer">{APP_DISCLAIMER}</p>
       </main>
@@ -586,6 +685,9 @@ function AppHome() {
   const [soundOn, setSoundOn] = useState(false);
   const [practiceNotice, setPracticeNotice] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardStatus, setLeaderboardStatus] = useState<LeaderboardStatus>("loading");
+  const [leaderboardError, setLeaderboardError] = useState("");
+  const [leaderboardScope, setLeaderboardScope] = useState<LeaderboardScope>("top10");
   const [average, setAverage] = useState(0);
   const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null);
   const activeElapsed = useRef(0);
@@ -597,11 +699,43 @@ function AppHome() {
   const lastFeedbackText = useRef("");
   const transitionTimer = useRef<number | null>(null);
   const shiftTimer = useRef<number | null>(null);
+  const secureSessionPromise = useRef<Promise<string | null> | null>(null);
+  const roundAttempts = useRef<RoundAttemptPayload[]>([]);
   const audioContext = useRef<AudioContext | null>(null);
   const audioMasterGain = useRef<GainNode | null>(null);
   const audioCompressor = useRef<DynamicsCompressorNode | null>(null);
 
-  const setName = (value: string) => setNameState(value.replace(/[^\p{L}\p{N} ._'’-]/gu, "").slice(0, 18));
+  const setName = (value: string) => setNameState(value.slice(0, 18));
+
+  const refreshLeaderboard = useCallback(async (scope: LeaderboardScope) => {
+    setLeaderboardScope(scope);
+    setLeaderboardStatus("loading");
+    setLeaderboardError("");
+    if (!competitionApiConfigured) {
+      setLeaderboard(safeReadBoard());
+      setLeaderboardStatus("offline");
+      setLeaderboardError("The shared competition service is not configured.");
+      return;
+    }
+    try {
+      const result = await loadSharedLeaderboard(scope);
+      setLeaderboard(result.entries.map((entry) => ({
+        name: entry.nickname,
+        score: entry.score,
+        avg: 0,
+        accuracy: 0,
+        bestStreak: entry.bestStreak,
+        moments: 0,
+        date: String(entry.rank),
+      })));
+      setLeaderboardPosition(result.myRank);
+      setLeaderboardStatus("ready");
+    } catch (error) {
+      setLeaderboard(safeReadBoard());
+      setLeaderboardStatus("offline");
+      setLeaderboardError(error instanceof Error ? error.message : "The shared cabinet is unavailable.");
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -609,7 +743,8 @@ function AppHome() {
       setSoundOn(localStorage.getItem("flash-focus-sound") === "on");
     } catch { /* unavailable storage */ }
     setLeaderboard(safeReadBoard());
-  }, []);
+    void refreshLeaderboard("top10");
+  }, [refreshLeaderboard]);
 
   useEffect(() => () => {
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
@@ -767,7 +902,7 @@ function AppHome() {
 
   const beginCountdown = (kind: SessionKind) => {
     const cleanName = name.trim().slice(0, 18);
-    if (!cleanName) return;
+    if (!isSafeParticipantName(cleanName)) return;
     setNameState(cleanName);
     setSessionKind(kind); setPracticeNotice(false); setPaused(false); ending.current = false;
     setCountdown(3); setScreen("countdown"); playTone("start");
@@ -779,6 +914,10 @@ function AppHome() {
     setRemaining(kind === "practice" ? 5 : 60); setRound(null); setLastAnswer(null); setFeedback(null);
     setPhase("waiting"); setResolvedCorrect(null);
     activeElapsed.current = 0; nextShiftAt.current = 15; answerLocked.current = false; setBanner(false);
+    roundAttempts.current = [];
+    secureSessionPromise.current = kind === "game" && competitionApiConfigured
+      ? startSecureSession(cleanName).then((session) => session.sessionId).catch(() => null)
+      : Promise.resolve(null);
     try { localStorage.setItem(NAME_KEY, cleanName); } catch { /* optional */ }
   };
 
@@ -835,8 +974,25 @@ function AppHome() {
       .slice(0, 10);
     const position = updated.findIndex((item) => item.name.trim().toLocaleLowerCase() === normalized);
     setLeaderboardPosition(position >= 0 ? position + 1 : null);
-    setLeaderboard(updated); safeWriteBoard(updated); setScreen("results"); setRound(null);
-  }, [bestStreak, correct, leaderboard, moments, name, playTone, reactionTimes, score, sessionKind, total]);
+    setLeaderboard(updated);
+    safeWriteBoard(updated);
+    setScreen("results");
+    setRound(null);
+    const attempts = roundAttempts.current.slice();
+    const pendingSession = secureSessionPromise.current;
+    if (pendingSession && competitionApiConfigured) {
+      void pendingSession.then(async (sessionId) => {
+        if (!sessionId) return;
+        try {
+          await submitSecureScore({ sessionId, score, rounds: attempts });
+          await refreshLeaderboard("top10");
+        } catch (error) {
+          setLeaderboardStatus("offline");
+          setLeaderboardError(error instanceof Error ? error.message : "The score could not be shared.");
+        }
+      });
+    }
+  }, [bestStreak, correct, leaderboard, moments, name, playTone, reactionTimes, refreshLeaderboard, score, sessionKind, total]);
 
   const showNextRound = useCallback((shifted = false) => {
     answerLocked.current = false;
@@ -871,6 +1027,17 @@ function AppHome() {
     answerLocked.current = true;
     setLastAnswer(null);
     setResolvedCorrect(round.shifted ? round.word : round.color);
+    if (sessionKind === "game") {
+      roundAttempts.current.push({
+        word: round.word,
+        color: round.color,
+        shifted: round.shifted,
+        answer: null,
+        timedOut: true,
+        reactionMs: null,
+        windowMs: round.deadline - round.promptAt,
+      });
+    }
     if (sessionKind === "practice") {
       playTone("timeout");
       speakFeedback("Time's up. Choose the ink color.");
@@ -959,6 +1126,17 @@ function AppHome() {
     const reaction = Math.max(0, activeElapsed.current * 1000 - round.promptAt);
     const expected = round.shifted ? round.word : round.color;
     const isCorrect = answer === expected;
+    if (sessionKind === "game") {
+      roundAttempts.current.push({
+        word: round.word,
+        color: round.color,
+        shifted: round.shifted,
+        answer,
+        timedOut: false,
+        reactionMs: reaction,
+        windowMs: round.deadline - round.promptAt,
+      });
+    }
     setResolvedCorrect(expected);
     setLastAnswer(isCorrect ? "good" : "bad");
     if (sessionKind === "practice") {
@@ -1023,12 +1201,38 @@ function AppHome() {
     setScreen("home"); setPaused(false); setRound(null); setFeedback(null); setPhase("waiting");
   };
 
+  const changeLeaderboardScope = (scope: LeaderboardScope) => {
+    void refreshLeaderboard(scope);
+  };
+
+  const deleteLeaderboardEntry = () => {
+    if (!window.confirm("Remove your nickname and leaderboard entry from this competition?")) return;
+    if (!competitionApiConfigured) {
+      const remainingEntries = leaderboard.filter((entry) => entry.name.trim().toLocaleLowerCase() !== name.trim().toLocaleLowerCase());
+      setLeaderboard(remainingEntries);
+      safeWriteBoard(remainingEntries);
+      setLeaderboardPosition(null);
+      return;
+    }
+    void deleteSharedLeaderboardEntry()
+      .then(() => {
+        setLeaderboardPosition(null);
+        setLeaderboard([]);
+        safeWriteBoard([]);
+        return refreshLeaderboard("top10");
+      })
+      .catch((error) => {
+        setLeaderboardStatus("error");
+        setLeaderboardError(error instanceof Error ? error.message : "The leaderboard entry could not be removed.");
+      });
+  };
+
   return (
     <>
-      {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} practiceNotice={practiceNotice} />}
+      {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} practiceNotice={practiceNotice} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
       {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} />}
-      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
+      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       <AppFooter />
     </>

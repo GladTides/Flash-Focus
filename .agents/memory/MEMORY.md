@@ -1,0 +1,1 @@
+- [Supabase runtime setup](supabase-runtime-setup.md) — hosted Auth provider toggles require the dashboard even when MCP schema and Edge Function deployment work.

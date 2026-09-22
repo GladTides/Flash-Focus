@@ -1,6 +1,6 @@
-# [Project name]
+# Flash Focus
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Flash Focus is a 60-second Stroop-inspired attention game with a privacy-safe shared competition leaderboard.
 
 ## Run & Operate
 
@@ -10,6 +10,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Flash Focus public build env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 ## Stack
 
@@ -22,15 +23,25 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/flash-focus/src/App.tsx` — gameplay, screens, local offline cabinet, and competition UI
+- `artifacts/flash-focus/src/lib/competition-api.ts` — anonymous Supabase session and Edge Function client
+- `artifacts/flash-focus/src/index.css` — Flash Focus visual system and responsive layout
+- `supabase/migrations/20260922000000_flash_focus_competition.sql` — competition tables, indexes, seed competition, and RLS
+- `supabase/functions/flash-focus/index.ts` — authenticated session, score validation, leaderboard, rate limiting, and deletion endpoint
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The browser never writes scores directly to Postgres. It submits a signed anonymous session plus round events to the Supabase Edge Function, which recalculates the score.
+- RLS intentionally denies direct client table access; public leaderboard data is projected through the Edge Function to approved fields only.
+- The localStorage cabinet is an offline/cache fallback, not the source of truth for shared competition results.
+- Anonymous Auth must be enabled in Supabase Authentication → Providers; this hosted setting cannot be enabled through the SQL migration.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Normal mode selects ink color; Borderless Shift selects the word.
+- One-minute sessions include streak multipliers, speed bonuses, Borderless Moments, audio/voice feedback, and accessible keyboard controls.
+- Shared leaderboard scopes include Top 10, Top 100, My Rank, This Week, and All Time.
+- Nickname validation rejects identifying/contact-like strings and the participant can remove their leaderboard entry.
 
 ## User preferences
 
@@ -38,7 +49,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Before testing shared scoring, enable Anonymous Sign-Ins in the Supabase dashboard and ensure the `flash-focus` Edge Function has JWT verification enabled.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only. Only the publishable key may be exposed through `VITE_` variables.
+- Exact disclaimer text is part of the start and results UI and the README; preserve it when editing copy.
 
 ## Pointers
 
