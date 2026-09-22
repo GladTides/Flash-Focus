@@ -49,11 +49,10 @@ const COLORS: Record<ColorName, { label: string; css: string }> = {
 const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
 const BOARD_KEY = "flash-focus-top-ten";
 const NAME_KEY = "flash-focus-player-name";
-const APP_DISCLAIMER = "Flash Focus is designed for learning, engagement, and entertainment purposes only. Results should not be interpreted as measures of intelligence, aptitude, cognitive ability, or job performance.";
+const APP_DISCLAIMER = "For learning and fun only. Scores do not measure intelligence or job performance.";
 const APP_CONFIG = {
   competitionSlug: "flash-focus-2026",
   organizationName: "Al-Futtaim",
-  independentNotice: "Flash Focus is an independent innovation competition prototype developed by Mubashshir Ahmed. It is not an official production application unless formally adopted.",
 };
 const FRIENDLY_FEEDBACK = [
   { text: "Classic Stroop trap!", voice: "Classic Stroop moment." },
@@ -365,8 +364,7 @@ function HomeScreen({
             <input id="player-name" className="name-input" maxLength={18} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" data-testid="input-player-name" />
             <button className="primary-button" type="submit" disabled={!isSafeParticipantName(name)} data-testid="button-start-game">START GAME <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
           </form>
-          <p className="name-note">Use a nickname or first name only. Do not enter an email, employee number, phone number, or legal name.</p>
-          <p className="public-note">{APP_CONFIG.independentNotice} Your nickname and score may be visible to anyone with this competition link.</p>
+          <p className="name-note">Use a nickname or first name only.</p>
           <p className="page-disclaimer start-disclaimer">{APP_DISCLAIMER}</p>
           <div className="micro-copy">
             <button className="quiet-button" type="button" onClick={onPractice} disabled={!isSafeParticipantName(name)} data-testid="button-practice"><Eye size={15} /> 5-SECOND PRACTICE ROUND</button>
@@ -617,7 +615,7 @@ function ResultsScreen({
             <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
           </div>
           <div className="public-note results-public-note">
-            {APP_CONFIG.independentNotice} Leaderboard entries are public to anyone with the competition link. You can remove your nickname and entry from this competition.
+            Leaderboard entries are public to anyone with the competition link. You can remove your nickname and entry from this competition.
             <br />
             <button className="quiet-button" type="button" onClick={onDeleteLeaderboardEntry}>Remove my leaderboard entry</button>
           </div>
@@ -653,7 +651,7 @@ function ResultsScreen({
 function AppFooter() {
   return (
     <footer className="app-footer" aria-label="Application information">
-      Flash Focus v1.0 | Developed by Mubashshir Ahmed | Educational &amp; Engagement Application
+      Flash Focus v1.0 | Developed by Mubashshir Ahmed
     </footer>
   );
 }

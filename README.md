@@ -73,7 +73,7 @@ The Edge Function creates a server-recognized session, validates nickname safety
 
 ## Disclaimer
 
-Flash Focus is designed for learning, engagement, and entertainment purposes only. Results should not be interpreted as measures of intelligence, aptitude, cognitive ability, or job performance.
+For learning and fun only. Scores do not measure intelligence or job performance.
 
 ## Author
 
