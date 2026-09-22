@@ -1,0 +1,172 @@
+Goal
+
+Upgrade Flash Focus from a browser-local leaderboard to one secure shared
+competition leaderboard that works across browsers and devices.
+
+Context
+
+Flash Focus is a React, TypeScript, and Vite browser game hosted publicly on
+Vercel. The application source is stored in GitHub and the frontend project is
+located at artifacts/flash-focus.
+
+The game will be promoted to approximately 10,000 employees through Viva Engage.
+The Vercel production URL remains publicly reachable without login, even though
+the primary audience is company employees.
+
+This is a voluntary innovation competition and engagement activity. It is not
+an employee assessment tool and must not imply that scores measure intelligence,
+cognitive ability, health, aptitude, or job performance.
+
+Goal architecture
+
+Browser frontend on Vercel
+→ secure server-side score API
+→ Supabase PostgreSQL
+→ shared competition leaderboard
+
+Use Supabase Anonymous Authentication so each browser receives a unique
+authenticated anonymous user ID without requesting an email address or password.
+
+Functional requirements
+
+1. Replace the device-local leaderboard with a central shared leaderboard.
+
+2. Keep localStorage only for:
+   - cached anonymous player ID or session information
+   - chosen nickname
+   - sound, voice, accessibility, and display preferences
+   - temporary offline fallback
+
+3. Participant name:
+   - Ask for a nickname or first name only.
+   - Trim surrounding whitespace.
+   - Reject empty input.
+   - Maximum 18 characters.
+   - Reject control characters, markup, scripts, URLs, email-like strings,
+     employee-number patterns, and obvious offensive terms.
+   - Render names as plain text, never HTML.
+   - Show:
+     "Use a nickname or first name only. Do not enter an employee number,
+     email address, telephone number, or other personal information."
+
+4. Do not collect:
+   - email addresses
+   - employee numbers
+   - full legal names
+   - telephone numbers
+   - job titles
+   - departments
+   - exact workplace locations
+   - device fingerprints
+   - company-confidential information
+
+5. Create database tables for:
+   - competitions
+   - participant_profiles
+   - game_sessions
+   - leaderboard_entries
+
+6. The leaderboard entry must include:
+   - anonymous user ID
+   - competition ID
+   - display nickname
+   - best score
+   - best streak
+   - best accuracy
+   - best average reaction time
+   - games played
+   - verified status
+   - created timestamp
+   - updated timestamp
+
+7. Leaderboard behavior:
+   - Keep one best entry per anonymous user per competition.
+   - Update only when a better score is achieved.
+   - Tie-break by higher best streak, then higher accuracy, then lower average
+     reaction time.
+   - Show Top 10 on the start and results screens.
+   - Add Top 100, My Rank, This Week, and All-Time views.
+   - Display only rank, nickname, score, and best streak.
+   - Include loading, error, empty, retry, and offline states.
+   - Refresh the leaderboard after a valid score submission.
+
+8. Secure game sessions:
+   - Request a unique server-recognized session ID when gameplay begins.
+   - Record the server start time.
+   - Allow each session ID to be submitted only once.
+   - Validate that game duration is approximately 60 seconds.
+   - Validate that the submitted score is consistent with correct answers,
+     speed bonuses, streaks, multipliers, and reverse rounds.
+   - Reject malformed, duplicate, structurally impossible, or implausible
+     submissions.
+   - Add submission rate limiting.
+   - Mark exceptional results as unverified for organizer review.
+   - Never trust a score merely because the browser submitted it.
+
+9. Security:
+   - Enable Row Level Security on every exposed Supabase table.
+   - Allow public leaderboard reads only for approved public columns.
+   - Do not permit unrestricted browser inserts, updates, or deletes.
+   - Submit scores through a secure Vercel serverless function or Supabase Edge
+     Function.
+   - Keep database secrets and the Supabase service-role key server-side.
+   - Never expose private credentials through VITE_ environment variables.
+   - Use parameterized queries or safe Supabase APIs.
+   - Sanitize and validate all input.
+   - Add a participant-controlled option to delete the participant's own entry.
+
+10. Required notices:
+
+   Start and results screens:
+   "Flash Focus is a voluntary learning and entertainment activity. Scores
+   reflect performance during a short game session and are not measures of
+   intelligence, cognitive ability, aptitude, health, or job performance.
+   Results must not be used for employment decisions."
+
+   Name and leaderboard area:
+   "The leaderboard displays participant-selected nicknames and gameplay
+   results. Do not enter confidential, personal, or sensitive information."
+
+   Public hosting:
+   "This application is accessible through a public web link. Do not enter
+   company-confidential information."
+
+11. Branding:
+   - Keep the existing Flash Focus identity.
+   - Do not add new company logos or proprietary assets.
+   - Store the organization name and competition wording in one configuration
+     object so they can be removed or changed easily.
+   - Do not claim official company sponsorship, endorsement, ownership, or
+     production approval.
+   - Add:
+     "Flash Focus is an independent innovation competition prototype developed
+     by Mubashshir Ahmed. It is not an official production application unless
+     formally adopted."
+
+12. Deliverables:
+   - Complete frontend integration
+   - Secure score-submission endpoint
+   - SQL schema and migration scripts
+   - Row Level Security policies
+   - Required Vercel and Supabase environment variables
+   - Automated tests for score validation, duplicate sessions, rate limiting,
+     invalid names, tie-breaking, and best-score updates
+   - README setup and deployment instructions
+   - Competition reset, close, and leaderboard-freeze instructions
+   - Participant-entry deletion instructions
+   - Organizer verification workflow for exceptional scores
+   - A limitations section covering anonymous impersonation, multiple browsers,
+     forwarded URLs, moderation, load testing, service limits, privacy approval,
+     and the need to verify prize finalists
+
+13. Preserve:
+   - current gameplay rules
+   - current visual design
+   - voice and sound feedback
+   - accessibility behavior
+   - responsive layout
+   - existing Vercel build configuration
+   - current GitHub and Vercel workflow
+
+Do not expose secrets, weaken existing security controls, or claim production
+readiness or company approval.
