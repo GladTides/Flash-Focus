@@ -39,6 +39,7 @@ const COLORS: Record<ColorName, { label: string; css: string }> = {
 const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
 const BOARD_KEY = "flash-focus-top-ten";
 const NAME_KEY = "flash-focus-player-name";
+const APP_DISCLAIMER = "Flash Focus is designed for learning, engagement, and entertainment purposes only. Results should not be interpreted as measures of intelligence, aptitude, cognitive ability, or job performance.";
 const FRIENDLY_FEEDBACK = [
   { text: "Classic Stroop trap!", voice: "Classic Stroop moment." },
   { text: "The word won that round.", voice: "The word fooled you." },
@@ -279,11 +280,17 @@ function HomeScreen({
             <input id="player-name" className="name-input" maxLength={18} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" data-testid="input-player-name" />
             <button className="primary-button" type="submit" disabled={!name.trim()} data-testid="button-start-game">START GAME <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
           </form>
+          <p className="page-disclaimer start-disclaimer">{APP_DISCLAIMER}</p>
           <div className="micro-copy">
             <button className="quiet-button" type="button" onClick={onPractice} disabled={!name.trim()} data-testid="button-practice"><Eye size={15} /> 5-SECOND PRACTICE ROUND</button>
             <span className="skip-copy">Skip practice by selecting START GAME.</span>
             {practiceNotice && <span style={{ marginLeft: 12, color: "hsl(var(--secondary))" }} data-testid="text-practice-complete">Practice complete. You’re ready.</span>}
           </div>
+          <section className="about-card" aria-labelledby="about-flash-focus-title">
+            <span className="eyebrow">the thinking behind the game</span>
+            <h2 id="about-flash-focus-title">ABOUT FLASH FOCUS</h2>
+            <p>Flash Focus is inspired by the Stroop Effect, a classic psychology experiment demonstrating how automatic word reading competes with color recognition. The game challenges focus, selective attention, and reaction speed through fast-paced color matching challenges.</p>
+          </section>
           <div className="leaderboard-preview">
             <div className="leaderboard-preview-header">
               <div><h2>BORDERLESS FOCUS LEADERBOARD</h2><p className="micro-copy">Who has the sharpest focus at Al-Futtaim?</p></div>
@@ -521,7 +528,6 @@ function ResultsScreen({
             <h2>WHY WAS THAT DIFFICULT?</h2>
             <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
             <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
-            <p className="disclaimer">This is an arcade game, not a medical, psychological, intelligence, or employee-performance assessment.</p>
           </div>
         </section>
         <aside className="result-card">
@@ -539,8 +545,17 @@ function ResultsScreen({
           </div>
           <Leaderboard entries={leaderboard} />
         </aside>
+        <p className="page-disclaimer results-disclaimer">{APP_DISCLAIMER}</p>
       </main>
     </div>
+  );
+}
+
+function AppFooter() {
+  return (
+    <footer className="app-footer" aria-label="Application information">
+      Flash Focus v1.0 | Developed by Mubashshir Ahmed | Educational &amp; Engagement Application
+    </footer>
   );
 }
 
@@ -1015,6 +1030,7 @@ function AppHome() {
       {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} />}
       {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      <AppFooter />
     </>
   );
 }
