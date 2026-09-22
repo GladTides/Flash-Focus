@@ -17,7 +17,7 @@ run = "pnpm --filter @workspace/flash-focus run dev"
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/flash-focus", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/flash-focus/dist/public"
+publicDir = "artifacts/flash-focus/dist"
 
 [[services.production.rewrites]]
 from = "/*"
