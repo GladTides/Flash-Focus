@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Route, Switch, Router as WouterRouter, useLocation } from "wouter";
 import {
   ArrowLeft,
@@ -18,6 +18,10 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import { GameDialog } from "@/components/game-dialog";
+import { PLAYER_NAME_MAX, PLAYER_NAME_MESSAGES, isSafeParticipantName, normalizePlayerName, playerNameProblem } from "./lib/player-name";
+import { withDisplayRanks } from "./lib/leaderboard-rank";
+import { readBriefingSeen, writeBriefingSeen } from "./lib/onboarding-storage";
 import {
   competitionApiConfigured,
   deleteSharedLeaderboardEntry,
@@ -34,7 +38,7 @@ type RoundPhase = "waiting" | "active" | "resolving";
 type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral" | "moment"; duration: number };
 type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "highStreak" | "ruleInk" | "ruleWord" | "moment" | "end" | "click" | "start";
 type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; ruleChanged: boolean; promptAt: number; deadline: number };
-type LeaderboardEntry = { name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
+type LeaderboardEntry = { rank?: number; name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
 type LeaderboardStatus = "loading" | "ready" | "offline" | "error";
 type ColorName = "RED" | "BLUE" | "GREEN" | "YELLOW" | "ORANGE" | "PURPLE";
 type RuleSequenceState = { queue: boolean[]; lastRule: boolean | null; consecutive: number };
@@ -116,16 +120,6 @@ function safeWriteBoard(entries: LeaderboardEntry[]) {
   } catch {
     // Private browsing and blocked storage are valid browser states.
   }
-}
-
-function isSafeParticipantName(value: string) {
-  const name = value.normalize("NFKC").trim();
-  if (!name || name.length > 18 || /[\u0000-\u001f\u007f]/u.test(name)) return false;
-  if (!/^[\p{L}\p{N} ._'’-]+$/u.test(name)) return false;
-  if (/(https?:\/\/|www\.|@|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b)/iu.test(name)) return false;
-  if (/(?:\+?\d[\d ()-]{6,}\d)/u.test(name)) return false;
-  if (/\b(?:employee|emp|staff|worker|associate|id|eid)[-_ ]?\d{4,}\b/iu.test(name)) return false;
-  return true;
 }
 
 function randomColor(exclude?: ColorName): ColorName {
@@ -218,25 +212,36 @@ function Header({
 }) {
   return (
     <header className="topbar" data-testid="header-game">
-      <div className="brand" aria-label="Flash Focus">
+      <div className="brand">
         <span className="brand-mark" aria-hidden="true" />
         <span>flash focus</span>
       </div>
       <div className="top-actions">
-        <button className="icon-button" onClick={onSound} aria-label={soundOn ? "Mute sound" : "Turn on sound"} data-testid="button-sound">
-          {soundOn ? <Volume2 size={17} /> : <VolumeX size={17} />}
+        <button className="icon-button" type="button" onClick={onSound} aria-label={soundOn ? "Mute sound" : "Turn on sound"} aria-pressed={soundOn} data-testid="button-sound">
+          {soundOn ? <Volume2 size={17} aria-hidden="true" /> : <VolumeX size={17} aria-hidden="true" />}
         </button>
-        <button className="icon-button" onClick={onFullscreen} aria-label="Toggle fullscreen" data-testid="button-fullscreen">
-          <Maximize2 size={17} />
+        <button className="icon-button" type="button" onClick={onFullscreen} aria-label="Toggle fullscreen" data-testid="button-fullscreen">
+          <Maximize2 size={17} aria-hidden="true" />
         </button>
-        <button className="quiet-button" onClick={onHelp} aria-label="Open help" data-testid="button-help">
-          <CircleHelp size={16} />
+        <button className="quiet-button help-trigger" type="button" onClick={onHelp} aria-haspopup="dialog" data-testid="button-help">
+          <CircleHelp size={16} aria-hidden="true" />
           <span>How to play</span>
         </button>
       </div>
     </header>
   );
 }
+
+const LEADERBOARD_COPY = {
+  loading: "Loading leaderboard",
+  error: "The leaderboard couldn’t load right now.",
+  offlineEmpty: "The shared leaderboard is unavailable, and no scores are saved on this device yet.",
+  offlineCached: "The shared leaderboard is unavailable. Showing scores saved on this device only. These are not added to the shared leaderboard later.",
+  empty: "No scores yet. The first run sets the bar.",
+  submitFailed: "Your score couldn’t be shared. It is saved on this device only.",
+  sessionUnavailable: "The shared leaderboard is unavailable for this run. Your score is saved on this device only.",
+  removeFailed: "Your entry couldn’t be removed right now. Please try again.",
+} as const;
 
 function Leaderboard({
   entries,
@@ -246,6 +251,7 @@ function Leaderboard({
   scope = "top10",
   onRetry,
   onScopeChange,
+  highlightName,
 }: {
   entries: LeaderboardEntry[];
   compact?: boolean;
@@ -254,6 +260,7 @@ function Leaderboard({
   scope?: LeaderboardScope;
   onRetry?: () => void;
   onScopeChange?: (scope: LeaderboardScope) => void;
+  highlightName?: string;
 }) {
   const scopes: Array<{ value: LeaderboardScope; label: string }> = [
     { value: "top10", label: "Top 10" },
@@ -262,76 +269,132 @@ function Leaderboard({
     { value: "thisWeek", label: "This week" },
     { value: "allTime", label: "All time" },
   ];
+  const rows = withDisplayRanks(compact ? entries.slice(0, 3) : entries);
+  const titleId = compact ? "leaderboard-preview-title" : "leaderboard-title";
+  const highlight = highlightName?.trim().toLocaleLowerCase();
   return (
-    <section className={compact ? "leaderboard-preview" : "result-card"} aria-labelledby={compact ? "leaderboard-preview-title" : "leaderboard-title"}>
+    <section className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
       <div className="leaderboard-preview-header">
         <div>
-          <h2 id={compact ? "leaderboard-preview-title" : "leaderboard-title"}>BORDERLESS FOCUS LEADERBOARD</h2>
+          <h2 id={titleId}>Borderless Focus Leaderboard</h2>
           <p className="micro-copy">Who has the sharpest focus at {APP_CONFIG.organizationName}?</p>
         </div>
-        {!compact && <Trophy size={17} color="hsl(var(--accent))" />}
+        {!compact && <Trophy size={17} color="hsl(var(--accent))" aria-hidden="true" />}
       </div>
       {!compact && onScopeChange && (
-        <div className="leaderboard-tabs" role="tablist" aria-label="Leaderboard views">
+        <div className="leaderboard-tabs" role="group" aria-label="Leaderboard view">
           {scopes.map((item) => (
             <button
               key={item.value}
               className={scope === item.value ? "leaderboard-tab is-active" : "leaderboard-tab"}
               onClick={() => onScopeChange(item.value)}
-              role="tab"
-              aria-selected={scope === item.value}
+              aria-pressed={scope === item.value}
               type="button"
+              data-testid={`button-leaderboard-scope-${item.value}`}
             >
               {item.label}
             </button>
           ))}
         </div>
       )}
-      {status === "loading" ? (
-        <p className="micro-copy leaderboard-state" data-testid="leaderboard-loading">Loading the shared cabinet…</p>
-      ) : status === "error" ? (
-        <div className="leaderboard-state">
-          <p className="micro-copy" data-testid="leaderboard-error">{error || "The shared cabinet is unavailable."}</p>
-          {onRetry && <button className="quiet-button" type="button" onClick={onRetry}>Try again</button>}
-        </div>
-      ) : status === "offline" && !entries.length ? (
-        <div className="leaderboard-state">
-          <p className="micro-copy">The shared cabinet is offline. Scores will remain on this device until it reconnects.</p>
-          {onRetry && <button className="quiet-button" type="button" onClick={onRetry}>Reconnect</button>}
-        </div>
-      ) : entries.length ? (
-        compact ? (
-          <ol>
-            {entries.slice(0, 3).map((entry, index) => (
-              <li key={`${entry.name}-${entry.date}-${index}`} data-testid={`leaderboard-preview-row-${index}`}>
-                <span>{String(index + 1).padStart(2, "0")} &nbsp; {entry.name}</span><strong>{entry.score.toLocaleString()}</strong>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <table className="leaderboard-table" data-testid="leaderboard-table">
-            <thead><tr><th scope="col">Rank / player</th><th scope="col">Score</th><th scope="col">Best streak</th></tr></thead>
-            <tbody>
-              {entries.map((entry, index) => (
-                <tr key={`${entry.name}-${entry.date}-${index}`} data-testid={`leaderboard-row-${index}`}>
-                  <td>{String(index + 1).padStart(2, "0")} &nbsp; {entry.name}</td>
-                  <td>{entry.score.toLocaleString()}</td>
-                  <td>{entry.bestStreak}</td>
+      <div role="status" aria-live="polite" className="leaderboard-live">
+        {status === "loading" ? (
+          <div className="leaderboard-skeleton" data-testid="leaderboard-loading">
+            <span className="sr-only">{LEADERBOARD_COPY.loading}</span>
+            {[0, 1, 2].map((item) => <i key={item} aria-hidden="true" />)}
+          </div>
+        ) : status === "error" ? (
+          <div className="leaderboard-state">
+            <p className="micro-copy" data-testid="leaderboard-error">{error || LEADERBOARD_COPY.error}</p>
+            {onRetry && <button className="quiet-button" type="button" onClick={onRetry} data-testid="button-leaderboard-retry">Try again</button>}
+          </div>
+        ) : status === "offline" && !rows.length ? (
+          <div className="leaderboard-state">
+            <p className="micro-copy" data-testid="leaderboard-offline">{error || LEADERBOARD_COPY.offlineEmpty}</p>
+            {onRetry && <button className="quiet-button" type="button" onClick={onRetry} data-testid="button-leaderboard-retry">Try again</button>}
+          </div>
+        ) : !rows.length ? (
+          <p className="micro-copy leaderboard-state" data-testid="empty-leaderboard">{LEADERBOARD_COPY.empty}</p>
+        ) : null}
+      </div>
+      {status !== "loading" && status !== "error" && rows.length > 0 && (
+        <table className={compact ? "leaderboard-table is-compact" : "leaderboard-table"} data-testid={compact ? "leaderboard-preview-table" : "leaderboard-table"}>
+          <caption className="sr-only">{status === "offline" ? "Scores saved on this device" : "Shared leaderboard"}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Rank</th>
+              <th scope="col">Player</th>
+              <th scope="col">Score</th>
+              {!compact && <th scope="col">Best streak</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((entry, index) => {
+              const isPlayer = Boolean(highlight) && entry.name.trim().toLocaleLowerCase() === highlight;
+              return (
+                <tr
+                  key={`${entry.name}-${entry.date}-${index}`}
+                  className={[entry.displayRank === 1 ? "is-leader" : "", isPlayer ? "is-player" : ""].join(" ").trim() || undefined}
+                  data-testid={compact ? `leaderboard-preview-row-${index}` : `leaderboard-row-${index}`}
+                >
+                  <td className="rank-cell">
+                    {String(entry.displayRank).padStart(2, "0")}
+                    {entry.tied && <span className="tie-mark" title="Same score as another player">tie<span className="sr-only">d score</span></span>}
+                  </td>
+                  <td className="player-cell"><span className="player-name">{entry.name}</span>{isPlayer && <span className="sr-only"> (you)</span>}</td>
+                  <td className="score-cell">{entry.score.toLocaleString()}</td>
+                  {!compact && <td className="score-cell">{entry.bestStreak}</td>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      ) : (
-        <p className="micro-copy" data-testid="empty-leaderboard">{status === "offline" ? "No cached scores are available on this device." : "The cabinet is waiting for its first score."}</p>
+              );
+            })}
+          </tbody>
+        </table>
       )}
-      {status === "offline" && entries.length > 0 && <p className="micro-copy leaderboard-offline-note">Showing this device’s cached cabinet while the shared service reconnects.</p>}
+      {status === "offline" && rows.length > 0 && (
+        <div className="leaderboard-offline-note">
+          <p className="micro-copy" data-testid="leaderboard-offline-note">{LEADERBOARD_COPY.offlineCached}</p>
+          {onRetry && <button className="quiet-button" type="button" onClick={onRetry} data-testid="button-leaderboard-reconnect">Try again</button>}
+        </div>
+      )}
+      {!compact && rows.some((entry) => entry.tied) && status === "ready" && (
+        <p className="micro-copy leaderboard-tie-note">Equal scores are ordered by best streak, then accuracy, then reaction time.</p>
+      )}
     </section>
   );
 }
 
+type BriefingMode = "help" | "game" | "practice";
+
+function SettingSwitch({ id, label, detail, enabled, onToggle }: { id: string; label: string; detail: string; enabled: boolean; onToggle: () => void }) {
+  return (
+    <div className="setting-row">
+      <span>
+        <label htmlFor={id} id={`${id}-label`}><strong>{label}</strong></label>
+        <small id={`${id}-detail`}>{detail}</small>
+      </span>
+      <button
+        id={id}
+        className={enabled ? "setting-toggle is-on" : "setting-toggle"}
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={`${id}-detail`}
+        onClick={onToggle}
+        data-testid={`switch-${id}`}
+      >
+        <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+        <span className="switch-state" aria-hidden="true">{enabled ? "On" : "Off"}</span>
+      </button>
+    </div>
+  );
+}
+
 function HelpModal({
+  mode,
+  inGame,
   onClose,
+  onConfirm,
   soundOn,
   voiceAnnouncementsOn,
   coachModeOn,
@@ -339,7 +402,10 @@ function HelpModal({
   onVoiceAnnouncements,
   onCoachMode,
 }: {
+  mode: BriefingMode;
+  inGame: boolean;
   onClose: () => void;
+  onConfirm: (skipNextTime: boolean) => void;
   soundOn: boolean;
   voiceAnnouncementsOn: boolean;
   coachModeOn: boolean;
@@ -347,65 +413,99 @@ function HelpModal({
   onVoiceAnnouncements: () => void;
   onCoachMode: () => void;
 }) {
-  const settings = [
-    { label: "Sound effects", detail: "Dings, cues and answer sounds", enabled: soundOn, onToggle: onSound },
-    { label: "Voice announcements", detail: "Speaks only when the rule changes", enabled: voiceAnnouncementsOn, onToggle: onVoiceAnnouncements },
-    { label: "Coach mode", detail: "Occasional spoken performance feedback", enabled: coachModeOn, onToggle: onCoachMode },
-  ];
+  const [skipNextTime, setSkipNextTime] = useState(true);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const confirmLabel = mode === "practice" ? "Start practice round" : mode === "game" ? "Got it · Let’s go" : "Got it · Close";
+  const confirmResult =
+    mode === "practice" ? "Starts a 5-second practice round. It does not count toward the leaderboard." :
+    mode === "game" ? "Starts your 60-second challenge after a 3-second countdown." :
+    inGame ? "Closes the briefing. Your game stays paused until you resume." :
+    "Closes the briefing. Nothing starts until you select Start Game.";
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="help-title" data-testid="dialog-help">
-      <div className="modal">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
-          <div>
-            <span className="eyebrow">how to play</span>
-            <h2 id="help-title">QUICK BRIEFING</h2>
-          </div>
-          <button className="icon-button" onClick={onClose} aria-label="Close help" data-testid="button-close-help"><X size={17} /></button>
+    <GameDialog labelledBy="help-title" describedBy="help-lede" onEscape={onClose} initialFocusRef={mode === "help" ? undefined : confirmRef} testId="dialog-help">
+      <div className="modal-head">
+        <div>
+          <span className="eyebrow">{mode === "practice" ? "practice round" : "how to play"}</span>
+          <h2 id="help-title">{mode === "practice" ? "5-second warm-up" : "Quick briefing"}</h2>
         </div>
-        <p className="briefing-lede">Stay sharp. The rule can change any round.</p>
-        <p><strong>“Follow the rule cue: choose the INK COLOR or choose the WORD COLOR.”</strong></p>
-        <ul className="help-list">
-          <li><span className="keycap">1–6</span><span><strong>CHOOSE</strong><small>Click a color or press 1–6.</small></span></li>
-          <li><span className="keycap">BLUE</span><span><strong>INK COLOR</strong><small>Choose the color used to display the word.</small></span></li>
-          <li><span className="keycap">ORANGE</span><span><strong>WORD COLOR</strong><small>Choose the color named by the word itself.</small></span></li>
-          <li><span className="keycap">SWITCH</span><span><strong>STAY READY</strong><small>Rules are mixed throughout the session and can change after any answer.</small></span></li>
-          <li><span className="keycap">BONUS</span><span><strong>ADAPT</strong><small>Keep a streak of 5+ and correctly handle a WORD COLOR challenge to earn:</small><b>BORDERLESS MOMENT!</b><b>+50 BONUS</b></span></li>
-          <li><span className="keycap">P</span><span><strong>PAUSE</strong><small>Pause or resume at any time.</small></span></li>
-          <li><span className="keycap">60s</span><span><strong>GO!</strong><small>Score as many points as possible in one minute.</small></span></li>
-        </ul>
-        <section className="settings-panel" aria-labelledby="settings-title">
-          <div>
-            <span className="eyebrow">settings</span>
-            <h3 id="settings-title">Audio &amp; guidance</h3>
-          </div>
-          <div className="settings-list">
-            {settings.map((setting) => (
-              <div className="setting-row" key={setting.label}>
-                <span><strong>{setting.label}</strong><small>{setting.detail}</small></span>
-                <button
-                  className={setting.enabled ? "setting-toggle is-on" : "setting-toggle"}
-                  type="button"
-                  role="switch"
-                  aria-checked={setting.enabled}
-                  onClick={setting.onToggle}
-                >
-                  {setting.enabled ? "ON" : "OFF"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-        <div className="modal-actions">
-          <button className="primary-button" onClick={onClose} data-testid="button-got-it">GOT IT — LET’S GO <ArrowRight size={16} style={{ verticalAlign: "middle", marginLeft: 6 }} /></button>
+        <button className="icon-button" type="button" onClick={onClose} aria-label={mode === "help" ? "Close briefing" : "Cancel and close briefing"} data-testid="button-close-help"><X size={17} aria-hidden="true" /></button>
+      </div>
+      <p className="briefing-lede" id="help-lede">Stay sharp. The active rule can change after any round.</p>
+      <div className="rule-compare" role="list" aria-label="The two rules">
+        <div className="rule-chip is-ink" role="listitem">
+          <strong>INK COLOR</strong>
+          <span>Choose the color you see.</span>
+        </div>
+        <div className="rule-chip is-word" role="listitem">
+          <strong>WORD COLOR</strong>
+          <span>Choose the color the word names.</span>
         </div>
       </div>
-    </div>
+      {mode === "practice" ? (
+        <p className="practice-brief">Click a color or press its number key. Practice lasts 5 seconds and is never scored or saved.</p>
+      ) : (
+        <ul className="help-list">
+          <li><span className="keycap">1–6</span><span><strong>Choose</strong><small>Click a color or press its number, 1–6.</small></span></li>
+          <li><span className="keycap">Switch</span><span><strong>Stay ready</strong><small>The active rule can change after any round.</small></span></li>
+          <li><span className="keycap">+50</span><span><strong>Bonus</strong><small>Build a streak of 5 or more, then answer a WORD COLOR round correctly to earn a Borderless Moment.</small></span></li>
+          <li><span className="keycap">P</span><span><strong>Pause</strong><small>Press P to pause or resume.</small></span></li>
+          <li><span className="keycap">60s</span><span><strong>Go</strong><small>Score as many points as possible in 60 seconds.</small></span></li>
+        </ul>
+      )}
+      {mode !== "practice" && (
+        <section className="settings-panel" aria-labelledby="settings-title">
+          <span className="eyebrow">settings</span>
+          <h3 id="settings-title">Audio &amp; guidance</h3>
+          <div className="settings-list">
+            <SettingSwitch id="setting-sound" label="Sound effects" detail="Answer sounds and rule-change cues" enabled={soundOn} onToggle={onSound} />
+            <SettingSwitch id="setting-voice" label="Voice announcements" detail="Speaks only when the rule changes; the on-screen cue always shows" enabled={voiceAnnouncementsOn} onToggle={onVoiceAnnouncements} />
+            <SettingSwitch id="setting-coach" label="Coach mode" detail="Occasional spoken feedback on your answers" enabled={coachModeOn} onToggle={onCoachMode} />
+          </div>
+          <p className="settings-note">Saved on this device when your browser allows it. Speech depends on browser support.</p>
+        </section>
+      )}
+      <div className="modal-actions modal-actions-stacked">
+        {mode === "game" && (
+          <label className="skip-check">
+            <input type="checkbox" checked={skipNextTime} onChange={(event) => setSkipNextTime(event.target.checked)} data-testid="checkbox-skip-briefing" />
+            <span>Skip this briefing next time. It stays under How to play.</span>
+          </label>
+        )}
+        <button ref={confirmRef} className="primary-button" type="button" onClick={() => onConfirm(skipNextTime)} aria-describedby="help-cta-result" data-testid="button-got-it">
+          {confirmLabel} <ArrowRight size={16} aria-hidden="true" className="button-icon-end" />
+        </button>
+        <p className="cta-result" id="help-cta-result">{confirmResult}</p>
+      </div>
+    </GameDialog>
+  );
+}
+
+function PracticeCompleteModal({ onStartGame, onPracticeAgain, onClose }: { onStartGame: () => void; onPracticeAgain: () => void; onClose: () => void }) {
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  return (
+    <GameDialog labelledBy="practice-done-title" describedBy="practice-done-copy" onEscape={onClose} initialFocusRef={primaryRef} testId="dialog-practice-complete">
+      <div className="modal-head">
+        <div>
+          <span className="eyebrow">practice round complete</span>
+          <h2 id="practice-done-title" data-testid="text-practice-complete">Warm-up done.</h2>
+        </div>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="Close and return to start" data-testid="button-close-practice"><X size={17} aria-hidden="true" /></button>
+      </div>
+      <p id="practice-done-copy">That was the feel of it. The full challenge runs for 60 seconds, speeds up as you go, and counts toward the leaderboard.</p>
+      <div className="modal-actions">
+        <button ref={primaryRef} className="primary-button" type="button" onClick={onStartGame} data-testid="button-start-full-challenge">Start full challenge <ArrowRight size={16} aria-hidden="true" className="button-icon-end" /></button>
+        <button className="secondary-button" type="button" onClick={onPracticeAgain} data-testid="button-practice-again"><RotateCcw size={16} aria-hidden="true" className="button-icon-start" /> Practice again</button>
+      </div>
+    </GameDialog>
   );
 }
 
 function HomeScreen({
   name,
   setName,
+  nameError,
+  nameInputRef,
+  onNameBlur,
   onStart,
   onPractice,
   onHelp,
@@ -416,10 +516,12 @@ function HomeScreen({
   leaderboardStatus,
   leaderboardError,
   onLeaderboardRetry,
-  practiceNotice,
 }: {
   name: string;
   setName: (value: string) => void;
+  nameError: string | null;
+  nameInputRef: RefObject<HTMLInputElement | null>;
+  onNameBlur: () => void;
   onStart: () => void;
   onPractice: () => void;
   onHelp: () => void;
@@ -430,46 +532,72 @@ function HomeScreen({
   leaderboardStatus: LeaderboardStatus;
   leaderboardError: string;
   onLeaderboardRetry: () => void;
-  practiceNotice: boolean;
 }) {
+  const count = normalizePlayerName(name).length;
   return (
     <div className="screen-shell">
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
       <main className="landing-grid">
-        <section className="hero-copy">
+        <section className="hero-copy" aria-labelledby="hero-title">
           <span className="eyebrow">Borderless Arcade / 01</span>
-          <h1 className="display">FLASH <em>FOCUS</em></h1>
-          <h2 className="hero-subtitle">A Borderless Thinking Challenge</h2>
-          <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
-          <p>Across Al-Futtaim, every day brings changing information, competing signals and fast decisions. Flash Focus puts your focus and adaptability to the test.</p>
-          <div className="rule-line">Follow the rule cue: choose the INK COLOR or the WORD COLOR. Stay ready — it can switch after any round.</div>
-          <p className="signal-line">Different signals. One clear decision.</p>
-          <form className="name-form" onSubmit={(event) => { event.preventDefault(); onStart(); }}>
-            <label htmlFor="player-name">Player name</label>
-            <input id="player-name" className="name-input" maxLength={18} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" data-testid="input-player-name" />
-            <button className="primary-button" type="submit" disabled={!isSafeParticipantName(name)} data-testid="button-start-game">START GAME <ArrowRight size={17} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
+          <h1 className="display" id="hero-title">FLASH <em>FOCUS</em></h1>
+          <p className="tagline">Different signals. One clear decision.</p>
+          <p className="hero-support">Follow the active rule, filter competing signals, and adapt when the rule changes.</p>
+          <ul className="fact-row" aria-label="Challenge facts">
+            <li><b>60s</b> challenge</li>
+            <li><b>1–6</b> keys or tap</li>
+            <li><b>Rules</b> switch</li>
+          </ul>
+          <p className="rule-line">
+            Follow the rule cue. Choose the <span className="rule-word is-ink">INK COLOR</span> or the <span className="rule-word is-word">WORD COLOR</span>. <strong className="rule-alert">The active rule can change after any round.</strong>
+          </p>
+          <form className="name-form" noValidate onSubmit={(event) => { event.preventDefault(); onStart(); }}>
+            <div className="name-label-row">
+              <label htmlFor="player-name">Player name</label>
+              <span className={count > PLAYER_NAME_MAX ? "name-count is-over" : "name-count"} aria-hidden="true">{count}/{PLAYER_NAME_MAX}</span>
+            </div>
+            <div className="name-controls">
+              <input
+                ref={nameInputRef}
+                id="player-name"
+                className="name-input"
+                autoComplete="nickname"
+                spellCheck={false}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                onBlur={onNameBlur}
+                placeholder="First name or nickname"
+                aria-invalid={nameError ? true : undefined}
+                aria-describedby={nameError ? "player-name-error player-name-help" : "player-name-help"}
+                data-testid="input-player-name"
+              />
+              <button className="primary-button" type="submit" data-testid="button-start-game">START GAME <ArrowRight size={17} aria-hidden="true" className="button-icon-end" /></button>
+            </div>
+            <p className="field-error" id="player-name-error" role="alert" data-testid="text-name-error">{nameError ?? ""}</p>
+            <p className="name-note" id="player-name-help">Use a first name or nickname only. Up to {PLAYER_NAME_MAX} characters.</p>
           </form>
-          <p className="name-note">Use a nickname or first name only.</p>
           <p className="page-disclaimer start-disclaimer">{APP_DISCLAIMER}</p>
-          <div className="micro-copy">
-            <button className="quiet-button" type="button" onClick={onPractice} disabled={!isSafeParticipantName(name)} data-testid="button-practice"><Eye size={15} /> 5-SECOND PRACTICE ROUND</button>
-            <span className="skip-copy">Skip practice by selecting START GAME.</span>
-            {practiceNotice && <span style={{ marginLeft: 12, color: "hsl(var(--secondary))" }} data-testid="text-practice-complete">Practice complete. You’re ready.</span>}
-          </div>
+          <section className="practice-block" aria-labelledby="practice-title">
+            <div>
+              <h2 id="practice-title">New to Flash Focus?</h2>
+              <p>Try a 5-second practice round before starting. It is not scored.</p>
+            </div>
+            <button className="secondary-button practice-button" type="button" onClick={onPractice} data-testid="button-practice"><Eye size={16} aria-hidden="true" /> Practice round · 5 seconds</button>
+          </section>
           <section className="about-card" aria-labelledby="about-flash-focus-title">
             <span className="eyebrow">the thinking behind the game</span>
-            <h2 id="about-flash-focus-title">ABOUT FLASH FOCUS</h2>
-            <p>Flash Focus is inspired by the Stroop Effect, a classic psychology experiment demonstrating how automatic word reading competes with color recognition. The game challenges focus, selective attention, and reaction speed through fast-paced color matching challenges.</p>
+            <h2 id="about-flash-focus-title">About Flash Focus</h2>
+            <p>Flash Focus is inspired by the Stroop Effect, a classic demonstration of how competing information can affect attention and response selection. The game turns that idea into a fast-paced color-matching challenge. It is for fun, not a measure of ability.</p>
           </section>
           <Leaderboard entries={leaderboard} compact status={leaderboardStatus} error={leaderboardError} onRetry={onLeaderboardRetry} />
         </section>
-        <aside className="hero-stamp" aria-label="Flash Focus game preview">
+        <aside className="hero-stamp" aria-label="Game preview: the word BLUE shown in red ink">
           <div className="stamp-header"><span>signal / response</span><span className="stamp-live">live</span></div>
           <div className="signal-card">
-            <span className="sample-word">BLUE</span>
+            <span className="sample-word" aria-hidden="true">BLUE</span>
           </div>
           <div className="stamp-footer">
-            <span>Different signals. One clear decision.</span>
+            <span className="stamp-caption"><b className="is-ink">INK</b> red <span aria-hidden="true">/</span> <b className="is-word">WORD</b> blue</span>
             <span className="color-dots" aria-hidden="true">
               {COLOR_NAMES.map((color) => <i key={color} style={{ background: `hsl(${COLORS[color].css})` }} />)}
             </span>
@@ -504,6 +632,7 @@ function GameScreen({
   phase,
   resolvedCorrect,
   sessionKind,
+  dialogOpen,
 }: {
   round: Round | null;
   score: number;
@@ -528,6 +657,7 @@ function GameScreen({
   phase: RoundPhase;
   resolvedCorrect: ColorName | null;
   sessionKind: SessionKind;
+  dialogOpen: boolean;
 }) {
   const percentage = duration ? Math.max(0, Math.min(1, remaining / duration)) : 0;
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
@@ -547,7 +677,7 @@ function GameScreen({
           <button className="icon-button" onClick={onRestart} aria-label="Restart game" data-testid="button-game-restart"><RotateCcw size={17} /></button>
           <button className="icon-button" onClick={onSound} aria-label={soundOn ? "Mute sound" : "Turn on sound"} data-testid="button-game-sound">{soundOn ? <Volume2 size={17} /> : <VolumeX size={17} />}</button>
           <button className="icon-button" onClick={onFullscreen} aria-label="Toggle fullscreen" data-testid="button-game-fullscreen"><Maximize2 size={17} /></button>
-          <button className="icon-button" onClick={onHelp} aria-label="Open help" data-testid="button-game-help"><CircleHelp size={17} /></button>
+          <button className="icon-button" onClick={onHelp} aria-label="How to play (pauses the game)" aria-haspopup="dialog" data-testid="button-game-help"><CircleHelp size={17} /></button>
         </div>
       </div>
       <main className="game-body">
@@ -577,7 +707,6 @@ function GameScreen({
                 onClick={() => onAnswer(color)}
                 disabled={phase !== "active" || paused}
                 data-testid={`button-answer-${color.toLowerCase()}`}
-                aria-label={`Answer ${COLORS[color].label}`}
               >
                 <span className="answer-swatch" aria-hidden="true" />{index + 1}. {COLORS[color].label}
               </button>
@@ -606,18 +735,16 @@ function GameScreen({
           </span>
         </div>
       )}
-      {paused && (
-        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="paused-title" data-testid="dialog-paused">
-          <div className="modal" style={{ textAlign: "center" }}>
-            <span className="eyebrow">session paused</span>
-            <h2 id="paused-title">Hold that thought.</h2>
-            <p>{document.hidden ? "The cabinet paused because this tab is hidden." : "Your minute is safe. Come back when you’re ready."}</p>
-            <div className="modal-actions" style={{ justifyContent: "center" }}>
-              <button className="primary-button" onClick={onPause} data-testid="button-resume"><Play size={16} style={{ verticalAlign: "middle", marginRight: 7 }} /> Resume</button>
-              <button className="secondary-button" onClick={onRestart} data-testid="button-restart"><RotateCcw size={16} style={{ verticalAlign: "middle", marginRight: 7 }} /> Restart</button>
-            </div>
+      {paused && !dialogOpen && (
+        <GameDialog labelledBy="paused-title" describedBy="paused-copy" onEscape={onPause} className="modal modal-center" testId="dialog-paused">
+          <span className="eyebrow">game paused</span>
+          <h2 id="paused-title">Hold that thought.</h2>
+          <p id="paused-copy">{document.hidden ? "The game paused because this tab was hidden." : "The clock is stopped. Resume when you’re ready, or press P."}</p>
+          <div className="modal-actions modal-actions-center">
+            <button className="primary-button" type="button" onClick={onPause} data-testid="button-resume"><Play size={16} aria-hidden="true" className="button-icon-start" /> Resume</button>
+            <button className="secondary-button" type="button" onClick={onRestart} data-testid="button-restart"><RotateCcw size={16} aria-hidden="true" className="button-icon-start" /> Restart</button>
           </div>
-        </div>
+        </GameDialog>
       )}
     </div>
   );
@@ -690,7 +817,7 @@ function ResultsScreen({
         <section>
           <span className="eyebrow">session complete / {name}</span>
           <h1 className="display">{title}</h1>
-          <p className="results-lede">One minute on the cabinet. No claims, no labels — just the read you made when the signals crossed.</p>
+          <p className="results-lede">Sixty seconds, done. No labels, no verdicts. Just how you read the signals when they crossed.</p>
           <div className="score-hero"><span className="score-number" data-testid="text-final-score">{score.toLocaleString()}</span><span className="score-label">points<br />final score</span></div>
           <div className="results-actions">
             <button className="primary-button" onClick={onRestart} data-testid="button-play-again">Play again <RotateCcw size={16} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
@@ -704,7 +831,7 @@ function ResultsScreen({
           <div className="public-note results-public-note">
             Leaderboard entries are public to anyone with the competition link. You can remove your nickname and entry from this competition.
             <br />
-            <button className="quiet-button" type="button" onClick={onDeleteLeaderboardEntry}>Remove my leaderboard entry</button>
+            <button className="quiet-button" type="button" onClick={onDeleteLeaderboardEntry} data-testid="button-remove-entry">Remove my leaderboard entry</button>
           </div>
         </section>
         <aside className="result-card">
@@ -718,7 +845,7 @@ function ResultsScreen({
             <div className="result-metric"><strong data-testid="text-result-streak">{bestStreak}</strong><span>best streak</span></div>
             <div className="result-metric"><strong>{completedShifts}</strong><span>word rounds</span></div>
             <div className="result-metric"><strong>{moments}</strong><span>Borderless Moments</span></div>
-            <div className="result-metric"><strong>{leaderboardPosition ? `#${leaderboardPosition}` : "—"}</strong><span>leaderboard position</span></div>
+            <div className="result-metric"><strong data-testid="text-result-rank">{leaderboardPosition ? `#${leaderboardPosition}` : "—"}</strong><span>your rank{leaderboardStatus === "offline" ? " (this device)" : ""}</span></div>
           </div>
           <Leaderboard
             entries={leaderboard}
@@ -727,6 +854,7 @@ function ResultsScreen({
             scope={leaderboardScope}
             onRetry={onLeaderboardRetry}
             onScopeChange={onLeaderboardScopeChange}
+            highlightName={name}
           />
         </aside>
         <p className="page-disclaimer results-disclaimer">{APP_DISCLAIMER}</p>
@@ -738,7 +866,7 @@ function ResultsScreen({
 function AppFooter() {
   return (
     <footer className="app-footer" aria-label="Application information">
-      Flash Focus v1.0 | Developed by Mubashshir Ahmed
+      Flash Focus v1.0 · Developed by Mubashshir Ahmed
     </footer>
   );
 }
@@ -765,11 +893,13 @@ function AppHome() {
   const [resolvedCorrect, setResolvedCorrect] = useState<ColorName | null>(null);
   const [lastAnswer, setLastAnswer] = useState<"good" | "bad" | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
+  const [modal, setModal] = useState<null | "help" | "game-briefing" | "practice-briefing" | "practice-complete">(null);
+  const [nameAttempted, setNameAttempted] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const lastLaunchAt = useRef(0);
   const [soundOn, setSoundOn] = useState(false);
   const [voiceAnnouncementsOn, setVoiceAnnouncementsOn] = useState(true);
   const [coachModeOn, setCoachModeOn] = useState(false);
-  const [practiceNotice, setPracticeNotice] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardStatus, setLeaderboardStatus] = useState<LeaderboardStatus>("loading");
   const [leaderboardError, setLeaderboardError] = useState("");
@@ -791,7 +921,11 @@ function AppHome() {
   const audioMasterGain = useRef<GainNode | null>(null);
   const audioCompressor = useRef<DynamicsCompressorNode | null>(null);
 
-  const setName = (value: string) => setNameState(value.slice(0, 18));
+  // No silent truncation: overlong input stays visible and gets an adjacent error.
+  const setName = (value: string) => setNameState(value);
+  const nameProblem = playerNameProblem(name);
+  const nameError = nameProblem && (nameAttempted || nameProblem === "tooLong" || (name.trim() !== "" && nameProblem !== "empty")) ? PLAYER_NAME_MESSAGES[nameProblem] : null;
+  const focusNameField = () => { window.setTimeout(() => nameInputRef.current?.focus(), 0); };
 
   const refreshLeaderboard = useCallback(async (scope: LeaderboardScope) => {
     setLeaderboardScope(scope);
@@ -800,7 +934,7 @@ function AppHome() {
     if (!competitionApiConfigured) {
       setLeaderboard(safeReadBoard());
       setLeaderboardStatus("offline");
-      setLeaderboardError("The shared competition service is not configured.");
+      setLeaderboardError("");
       return;
     }
     try {
@@ -813,13 +947,15 @@ function AppHome() {
         bestStreak: entry.bestStreak,
         moments: 0,
         date: String(entry.rank),
+        rank: entry.rank,
       })));
       setLeaderboardPosition(result.myRank);
       setLeaderboardStatus("ready");
-    } catch (error) {
+    } catch {
+      // Raw service errors are never shown to players.
       setLeaderboard(safeReadBoard());
       setLeaderboardStatus("offline");
-      setLeaderboardError(error instanceof Error ? error.message : "The shared cabinet is unavailable.");
+      setLeaderboardError("");
     }
   }, []);
 
@@ -1034,10 +1170,15 @@ function AppHome() {
   };
 
   const beginCountdown = (kind: SessionKind) => {
-    const cleanName = name.trim().slice(0, 18);
-    if (!isSafeParticipantName(cleanName)) return;
-    setNameState(cleanName);
-    setSessionKind(kind); setPracticeNotice(false); setPaused(false); ending.current = false;
+    // Guard against double clicks / repeated Enter launching two sessions.
+    const now = Date.now();
+    if (screen === "countdown" || now - lastLaunchAt.current < 800) return;
+    const cleanName = name.trim();
+    if (kind === "game" && !isSafeParticipantName(cleanName)) return;
+    lastLaunchAt.current = now;
+    if (kind === "game") setNameState(cleanName);
+    setModal(null);
+    setSessionKind(kind); setPaused(false); ending.current = false;
     setCountdown(3); setScreen("countdown"); playTone("start");
     setScore(0); setStreak(0); setBestStreak(0); setTotal(0); setCorrect(0); setIncorrect(0); setTimeouts(0);
     setCompletedShifts(0); setMoments(0); setReactionTimes([]); setLeaderboardPosition(null);
@@ -1052,7 +1193,32 @@ function AppHome() {
     secureSessionPromise.current = kind === "game" && competitionApiConfigured
       ? startSecureSession(cleanName).then((session) => session.sessionId).catch(() => null)
       : Promise.resolve(null);
-    try { localStorage.setItem(NAME_KEY, cleanName); } catch { /* optional */ }
+    if (kind === "game") { try { localStorage.setItem(NAME_KEY, cleanName); } catch { /* optional */ } }
+  };
+
+  const requestGame = () => {
+    setNameAttempted(true);
+    if (playerNameProblem(name)) { setModal(null); focusNameField(); return; }
+    if (readBriefingSeen()) beginCountdown("game");
+    else setModal("game-briefing");
+  };
+
+  const requestPractice = () => setModal("practice-briefing");
+
+  const openHelp = () => {
+    if (screen === "playing" || screen === "practice") setPaused(true);
+    setModal("help");
+  };
+
+  const confirmBriefing = (skipNextTime: boolean) => {
+    if (modal === "game-briefing") {
+      writeBriefingSeen(skipNextTime);
+      beginCountdown("game");
+    } else if (modal === "practice-briefing") {
+      beginCountdown("practice");
+    } else {
+      setModal(null);
+    }
   };
 
   useEffect(() => {
@@ -1085,7 +1251,7 @@ function AppHome() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setFeedback(null); setPhase("waiting");
     if (sessionKind === "practice") {
-      setScreen("home"); setPracticeNotice(true); setRound(null); return;
+      setScreen("home"); setRound(null); setModal("practice-complete"); return;
     }
     playTone("end");
     const avg = reactionTimes.length ? reactionTimes.reduce((sum, value) => sum + value, 0) / reactionTimes.length : 0;
@@ -1107,8 +1273,9 @@ function AppHome() {
     const updated = [...withoutPlayer, candidate]
       .sort((a, b) => b.score - a.score || b.accuracy - a.accuracy || b.bestStreak - a.bestStreak || b.moments - a.moments || a.date.localeCompare(b.date))
       .slice(0, 10);
-    const position = updated.findIndex((item) => item.name.trim().toLocaleLowerCase() === normalized);
-    setLeaderboardPosition(position >= 0 ? position + 1 : null);
+    const ranked = withDisplayRanks(updated);
+    const mine = ranked.find((item) => item.name.trim().toLocaleLowerCase() === normalized);
+    setLeaderboardPosition(mine ? mine.displayRank : null);
     setLeaderboard(updated);
     safeWriteBoard(updated);
     setScreen("results");
@@ -1117,14 +1284,19 @@ function AppHome() {
     const pendingSession = secureSessionPromise.current;
     if (pendingSession && competitionApiConfigured) {
       void pendingSession.then(async (sessionId) => {
-        if (!sessionId) return;
+        if (!sessionId) {
+          setLeaderboardStatus("offline");
+          setLeaderboardError(LEADERBOARD_COPY.sessionUnavailable);
+          return;
+        }
         try {
           await submitSecureScore({ sessionId, score, rounds: attempts });
-          await refreshLeaderboard("top10");
-        } catch (error) {
+        } catch {
           setLeaderboardStatus("offline");
-          setLeaderboardError(error instanceof Error ? error.message : "The score could not be shared.");
+          setLeaderboardError(LEADERBOARD_COPY.submitFailed);
+          return;
         }
+        await refreshLeaderboard("top10");
       });
     }
   }, [bestStreak, correct, leaderboard, moments, name, playTone, reactionTimes, refreshLeaderboard, score, sessionKind, total]);
@@ -1224,7 +1396,8 @@ function AppHome() {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, [contenteditable='true']") || event.repeat) return;
-      if (showHelp) { if (event.key === "Escape") setShowHelp(false); return; }
+      // Dialogs own Escape/Tab; no game keys fire behind the briefing.
+      if (modal) return;
       if ((screen === "playing" || screen === "practice") && !paused) {
         if (event.key.toLowerCase() === "p") { setPaused(true); return; }
         if (event.key.toLowerCase() === "r") {
@@ -1320,7 +1493,7 @@ function AppHome() {
   const home = () => {
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    setScreen("home"); setPaused(false); setRound(null); setFeedback(null); setPhase("waiting");
+    setScreen("home"); setPaused(false); setRound(null); setFeedback(null); setPhase("waiting"); setModal(null);
   };
 
   const changeLeaderboardScope = (scope: LeaderboardScope) => {
@@ -1343,21 +1516,25 @@ function AppHome() {
         safeWriteBoard([]);
         return refreshLeaderboard("top10");
       })
-      .catch((error) => {
+      .catch(() => {
         setLeaderboardStatus("error");
-        setLeaderboardError(error instanceof Error ? error.message : "The leaderboard entry could not be removed.");
+        setLeaderboardError(LEADERBOARD_COPY.removeFailed);
       });
   };
 
   return (
     <>
-      {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} practiceNotice={practiceNotice} />}
+      {screen === "home" && <HomeScreen name={name} setName={setName} nameError={nameError} nameInputRef={nameInputRef} onNameBlur={() => { if (name.trim()) setNameAttempted(true); }} onStart={requestGame} onPractice={requestPractice} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
-      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} />}
-      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
-      {showHelp && (
+      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} dialogOpen={modal !== null} />}
+      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={openHelp} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
+      {(modal === "help" || modal === "game-briefing" || modal === "practice-briefing") && (
         <HelpModal
-          onClose={() => setShowHelp(false)}
+          key={modal}
+          mode={modal === "game-briefing" ? "game" : modal === "practice-briefing" ? "practice" : "help"}
+          inGame={screen === "playing" || screen === "practice"}
+          onConfirm={confirmBriefing}
+          onClose={() => setModal(null)}
           soundOn={soundOn}
           voiceAnnouncementsOn={voiceAnnouncementsOn}
           coachModeOn={coachModeOn}
@@ -1366,7 +1543,14 @@ function AppHome() {
           onCoachMode={toggleCoachMode}
         />
       )}
-      <AppFooter />
+      {modal === "practice-complete" && (
+        <PracticeCompleteModal
+          onStartGame={requestGame}
+          onPracticeAgain={() => { lastLaunchAt.current = 0; beginCountdown("practice"); }}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {screen !== "playing" && screen !== "practice" && screen !== "countdown" && <AppFooter />}
     </>
   );
 }
