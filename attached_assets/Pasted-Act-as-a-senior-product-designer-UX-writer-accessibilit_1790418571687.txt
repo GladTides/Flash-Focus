@@ -1,0 +1,722 @@
+Act as a senior product designer, UX writer, accessibility specialist, front-end engineer, and QA lead.
+
+Your task is to improve the existing “Flash Focus” game landing page and onboarding experience to a production-quality 10/10 standard across visual design, brand identity, usability, onboarding, responsiveness, accessibility, performance, interaction design, and technical polish.
+
+Do not replace the current design with a generic template. Preserve the established visual identity:
+
+• Dark navy and charcoal interface
+• Large editorial typography
+• Warm orange primary accent
+• Cyan secondary accent
+• Monospaced technical labels
+• “Borderless Arcade” positioning
+• Premium cognitive-game aesthetic
+• “Different signals. One clear decision.” as the primary tagline
+• Existing Stroop Effect concept and game mechanics
+• Existing player-name, practice, briefing, settings, leaderboard, and Start Game functionality
+
+Use the supplied screenshots and existing codebase as the source of truth. Inspect the full implementation before editing. Reuse the current design tokens, components, state management, APIs, and leaderboard logic where practical.
+
+Do not invent backend capabilities that do not exist.
+
+==================================================
+1. PRIMARY PRODUCT GOAL
+==================================================
+
+Create a confident, polished, accessible landing experience that allows a first-time player to understand the purpose of Flash Focus, enter a name, review the rules, optionally practice, configure guidance settings, and begin the game without confusion.
+
+The experience should feel like a premium micro-game rather than a corporate form, dashboard, or generic training module.
+
+The interface must communicate:
+
+1. What Flash Focus is
+2. What the player must do
+3. How long the game takes
+4. What the main action is
+5. How practice differs from the full game
+6. That rules can change between rounds
+7. That scores are for learning and entertainment, not an assessment of intelligence or job performance
+
+==================================================
+2. EXPERIENCE PRINCIPLES
+==================================================
+
+Use these principles to evaluate every decision:
+
+• Clarity before decoration
+• One obvious primary action per screen
+• Progressive disclosure instead of instruction overload
+• Concise, confident microcopy
+• Strong visual hierarchy
+• Consistent spacing and alignment
+• Keyboard-first operability
+• WCAG 2.2 AA accessibility
+• Responsive behavior from small mobile screens to large desktop displays
+• Motion that reinforces meaning
+• Respect for reduced-motion preferences
+• No manipulative, stressful, or misleading language
+• No suggestion that results measure intelligence, capability, or employee performance
+
+Do not claim a perfect score merely because the implementation is complete. Validate the work against the acceptance criteria at the end.
+
+==================================================
+3. LANDING-PAGE INFORMATION ARCHITECTURE
+==================================================
+
+Refine the landing page into the following hierarchy:
+
+A. Brand eyebrow
+“BORDERLESS ARCADE / 01”
+
+B. Primary heading
+“FLASH”
+“FOCUS”
+
+C. Primary tagline
+“Different signals. One clear decision.”
+
+D. Concise supporting copy
+Use a shorter and more scannable description. Recommended direction:
+
+“Follow the active rule, filter competing signals, and adapt when the rule changes.”
+
+Add no more than three compact challenge facts if the facts are accurate in the implementation, for example:
+
+• 60-second challenge
+• 1–6 keyboard controls
+• Dynamic rule changes
+
+Do not display inaccurate duration, scoring, or gameplay details.
+
+E. Core rule summary
+Keep the landing-page explanation brief because detailed instructions already exist in the Quick Briefing modal.
+
+Recommended copy:
+
+“Follow the rule cue. Choose the INK COLOR or the WORD COLOR. The active rule can change after any round.”
+
+Visually emphasize “INK COLOR,” “WORD COLOR,” and the possibility of a rule change.
+
+F. Player-name entry and primary CTA
+Keep the player-name field and Start Game action visually grouped.
+
+Recommended field label:
+“Player name”
+
+Recommended placeholder:
+“First name or nickname”
+
+Recommended helper copy:
+“Use a first name or nickname only.”
+
+Recommended primary CTA:
+“START GAME” or “START CHALLENGE”
+
+Use only one label consistently throughout the product.
+
+Keep the privacy and psychological-safety statement visible but visually secondary:
+
+“For learning and fun only. Scores do not measure intelligence or job performance.”
+
+G. Secondary onboarding action
+Redesign the existing practice section completely.
+
+Remove:
+“Skip practice by selecting START GAME.”
+
+Do not place disconnected helper text directly beside the practice control.
+
+Use a deliberate secondary-action block below the main Start Game action:
+
+“NEW TO FLASH FOCUS?”
+“Try a 5-second practice round before starting.”
+
+Secondary button:
+“PRACTICE ROUND · 5 SECONDS”
+
+Alternative compact treatment:
+“Need a warm-up? Try a 5-second sample.”
+
+The practice button must look clearly secondary to Start Game while remaining easy to discover.
+
+Explain what practice does, not how to skip it.
+
+H. Science section
+Retain the “About Flash Focus” section and its reference to the Stroop Effect.
+
+Keep the explanation concise, factual, and non-diagnostic. Do not imply that the game clinically measures cognitive ability.
+
+Suggested direction:
+
+“Flash Focus is inspired by the Stroop Effect, a classic demonstration of how competing information can affect attention and response selection. The game turns that concept into a fast-paced color-matching challenge.”
+
+I. Leaderboard
+Retain the leaderboard but upgrade its presentation.
+
+Include clear headings:
+• Rank
+• Player
+• Score
+
+Requirements:
+• Align scores consistently
+• Use tabular numerals
+• Add subtle row separators
+• Give the leading position a restrained visual highlight
+• Do not rely only on medal emoji
+• Handle long player names gracefully
+• Provide useful empty, loading, offline, and error states
+• Do not expose private data
+• Continue restricting names to first names or nicknames where supported
+
+Replace technical text such as:
+“Showing this device’s cached cabinet while the shared service reconnects.”
+
+Use calm, user-facing status copy:
+
+“Showing saved scores. New scores will sync when the connection is restored.”
+
+If automatic synchronization is not implemented, use accurate wording instead of promising automatic behavior.
+
+J. Footer
+Retain the product version and development credit, but reduce visual competition.
+
+Use:
+“Flash Focus v1.0 · Developed by Mubashshir Ahmed”
+
+Ensure the footer does not resemble debugging information.
+
+==================================================
+4. QUICK BRIEFING MODAL
+==================================================
+
+Keep the Quick Briefing modal. It already contains the detailed instructions, gameplay concepts, settings, and final CTA.
+
+Polish rather than replace it.
+
+Recommended hierarchy:
+
+Eyebrow:
+“HOW TO PLAY”
+
+Heading:
+“QUICK BRIEFING”
+
+Important rule:
+“Stay sharp. The active rule can change after any round.”
+
+Core explanation:
+“Follow the active rule:
+INK COLOR means choose the color you see.
+WORD COLOR means choose the color named by the word.”
+
+Make the distinction between INK COLOR and WORD COLOR visually unmistakable.
+
+Instruction items:
+
+1. CHOOSE
+“Click a color or press 1–6.”
+
+2. INK COLOR
+“Choose the color used to display the word.”
+
+3. WORD COLOR
+“Choose the color named by the word.”
+
+4. STAY READY
+“The active rule can change after any round.”
+
+5. BONUS
+“Build a streak of 5 or more, then answer a WORD COLOR challenge correctly to earn the Borderless Moment bonus.”
+
+6. PAUSE
+“Press P to pause or resume.”
+
+7. GO
+“Score as many points as possible in 60 seconds.”
+
+Check these statements against the actual mechanics before displaying them.
+
+Improve scanability using restrained custom icons or keycap-style labels. Do not use decorative emoji if those conflict with the current visual system.
+
+Highlight the single most important rule in a modest callout. Do not turn every instruction into a separate high-emphasis card.
+
+Keep the settings section:
+
+• Sound effects
+• Voice announcements
+• Coach mode
+
+For every toggle:
+• Use a real accessible switch control
+• Expose the current state programmatically
+• Support keyboard interaction
+• Provide a visible focus indicator
+• Ensure the label and description activate or describe the control correctly
+• Preserve user preferences where appropriate
+• Do not autoplay speech or audio before user interaction if browser policy prohibits it
+
+Change the final CTA to one consistent action label, such as:
+“GOT IT · LET’S GO”
+
+The CTA must explain whether clicking it begins practice, begins the full game, or simply closes the briefing. Avoid ambiguous transitions.
+
+==================================================
+5. FIRST-TIME AND RETURNING-PLAYER FLOW
+==================================================
+
+Implement a coherent flow:
+
+First-time player:
+1. Enter first name or nickname
+2. Select Start Game
+3. Open Quick Briefing
+4. Review controls and settings
+5. Select “Got It · Let’s Go”
+6. Begin the full challenge
+
+Practice flow:
+1. Enter first name or nickname if required by the implementation
+2. Select “Practice Round · 5 Seconds”
+3. Show only the minimum briefing required for practice
+4. Begin the five-second sample
+5. Show a clear completion state
+6. Offer “Start Full Challenge” as the primary next action
+7. Offer “Practice Again” as the secondary action
+
+Returning player:
+• Do not repeatedly force the full briefing unless required
+• Keep a clearly discoverable “How to Play” action
+• Allow the player to review or change audio and guidance settings
+• Do not rely exclusively on local storage for essential functionality without graceful fallback
+
+If the existing product requires a different sequence, preserve functional requirements while maintaining the same clarity.
+
+==================================================
+6. VISUAL-DESIGN REFINEMENTS
+==================================================
+
+Preserve the established aesthetic while improving consistency.
+
+Create or normalize design tokens for:
+
+• Background colors
+• Surface colors
+• Primary and secondary text
+• Muted text
+• Orange accent
+• Cyan accent
+• Yellow alert or rule-change accent
+• Borders
+• Focus rings
+• Success, warning, and error states
+• Border radii
+• Shadows
+• Typography scale
+• Spacing scale
+• Transition durations
+
+Recommended spacing system:
+Use a consistent 4px or 8px base scale.
+
+Recommended touch-target minimum:
+44 × 44 CSS pixels.
+
+Recommended typography:
+• Use large display typography only for the main hero
+• Use comfortable line heights for supporting text
+• Avoid long all-uppercase paragraphs
+• Reserve monospaced uppercase styling for labels, keycaps, scores, system cues, and compact headings
+• Use tabular numbers for leaderboard scores and timers
+
+Improve desktop balance:
+• Raise or align the right-side game-preview panel with the meaningful hero content
+• Reduce unnecessary empty space
+• Maintain enough separation between introduction, input, practice, About, and leaderboard sections
+• Keep the page visually balanced without forcing equal column heights
+
+Improve the game-preview card:
+• Preserve the central word, circular rings, signal label, live indicator, caption, and color swatches
+• Add subtle motion only if the motion demonstrates gameplay
+• A slow ring pulse or occasional sample-color transition is acceptable
+• Avoid constant distracting movement
+• Pause nonessential animation when the document is not visible
+• Respect prefers-reduced-motion
+
+Use shadows, glow, and gradients sparingly. The page should remain sophisticated and restrained.
+
+==================================================
+7. RESPONSIVE DESIGN
+==================================================
+
+Test and optimize at minimum:
+
+• 320px
+• 375px
+• 390px
+• 768px
+• 1024px
+• 1280px
+• 1440px and wider
+
+Mobile requirements:
+• Stack hero content and preview logically
+• Keep the heading large but prevent clipping and overflow
+• Make the name input and primary CTA full-width where needed
+• Avoid putting long helper copy beside buttons
+• Ensure the Quick Briefing fits without horizontal scrolling
+• Convert the briefing instruction grid to a single column at narrow widths
+• Keep modal actions reachable
+• Prevent the close button from overlapping content
+• Keep the leaderboard readable without forcing horizontal scrolling
+• Ensure browser zoom up to 200 percent does not break the page
+
+Desktop requirements:
+• Keep an intentional two-column composition
+• Avoid oversized empty areas
+• Maintain readable line lengths of roughly 45–75 characters for body copy
+• Do not stretch the leaderboard or science section unnecessarily
+
+==================================================
+8. ACCESSIBILITY
+==================================================
+
+Target WCAG 2.2 Level AA.
+
+Validate:
+
+• Semantic heading order
+• Form labels and descriptions
+• Field validation and useful error messages
+• Keyboard navigation
+• Visible focus states
+• Logical focus order
+• Modal focus trap
+• Focus return to the triggering control after modal closure
+• Escape-key behavior
+• Screen-reader-friendly button names
+• Accessible switch states
+• Text contrast
+• Non-text contrast for controls and focus indicators
+• No color-only communication
+• 200 percent zoom
+• Reduced-motion support
+• Sufficient touch targets
+• Status announcements using appropriate live regions
+• Timer behavior that does not create an inaccessible interaction
+• Audio controls and text alternatives for spoken cues
+
+Do not remove the accessibility outline unless it is replaced with an equally or more visible focus treatment.
+
+The orange button, cyan outline, muted gray copy, yellow highlights, borders, and small monospaced labels must all be checked against their actual background colors.
+
+Do not claim WCAG compliance without performing a contrast and interaction audit.
+
+==================================================
+9. FORM VALIDATION AND PRIVACY
+==================================================
+
+Player-name requirements:
+• Trim leading and trailing whitespace
+• Reject an empty value
+• Set a reasonable maximum length, such as 24 characters, if compatible with current requirements
+• Prevent markup or script injection
+• Avoid collecting surnames, employee IDs, email addresses, or sensitive personal information
+• Display errors adjacent to the field
+• Move focus appropriately when form submission fails
+• Preserve the entered nickname when opening and closing the briefing
+• Do not log player names unnecessarily
+
+Suggested error messages:
+
+Empty:
+“Enter a first name or nickname to continue.”
+
+Too long:
+“Use 24 characters or fewer.”
+
+Invalid input:
+“Use letters, numbers, spaces, hyphens, or apostrophes only.”
+
+Only impose character restrictions if they support international names and the actual storage layer. Do not unnecessarily exclude valid names written in non-Latin scripts.
+
+==================================================
+10. INTERACTION AND MOTION
+==================================================
+
+Add restrained micro-interactions:
+
+Primary CTA:
+• Slight color or elevation change on hover
+• Clear pressed state
+• Clear focus state
+• No large movement
+
+Practice CTA:
+• Cyan or neutral secondary styling
+• Clearly secondary, but not disabled-looking
+
+Preview:
+• Optional slow ring pulse
+• Optional controlled word/color sample rotation
+• Stop or simplify under reduced-motion
+
+Modal:
+• Short fade and scale transition
+• No excessive bouncing
+• Avoid animation that delays interaction
+
+Leaderboard:
+• Avoid dramatic reordering
+• If scores update live, use a brief restrained highlight
+• Announce meaningful updates accessibly without overwhelming assistive technology
+
+Use motion durations consistently, approximately:
+• 120–180ms for control feedback
+• 180–250ms for panels and modal transitions
+• Slower ambient animation only when it is subtle and nonessential
+
+==================================================
+11. CONTENT AND TONE
+==================================================
+
+Use concise, direct, friendly language.
+
+Brand tone:
+• Sharp
+• Confident
+• Intelligent
+• Encouraging
+• Non-corporate
+• Non-clinical
+• Not childish
+• Not overly technical
+
+Avoid:
+• “Select START GAME to skip”
+• Internal system terminology
+• Debugging messages
+• Overexplaining obvious controls
+• Claims that the game measures intelligence
+• Claims that the game predicts job performance
+• Vague buttons such as “Continue” when a specific action is possible
+• Inconsistent use of “round,” “challenge,” “game,” and “session”
+
+Maintain a terminology map and use it consistently:
+• Full experience: “challenge” or “game”
+• Short onboarding sample: “practice round”
+• One presented stimulus: “round” only if that matches the existing mechanics
+• Main scoring period: “60-second challenge” if accurate
+• Rule states: “INK COLOR” and “WORD COLOR”
+
+Proofread all interface copy for grammar, capitalization, punctuation, and consistency.
+
+==================================================
+12. TECHNICAL QUALITY
+==================================================
+
+Before editing:
+1. Inspect the current component tree
+2. Identify duplicated styles and copy
+3. Identify the existing design tokens
+4. Trace Start Game, practice, modal, settings, leaderboard, offline, and error states
+5. Verify the actual game mechanics and durations
+6. Verify whether settings and names persist
+7. Verify leaderboard synchronization behavior
+
+During implementation:
+• Prefer reusable components
+• Avoid unnecessary dependencies
+• Preserve existing working APIs
+• Avoid layout shifts
+• Avoid console errors and warnings
+• Handle loading, empty, error, offline, and success states
+• Prevent duplicate game launches from repeated clicks
+• Disable actions only when necessary and explain disabled states
+• Use semantic HTML before adding ARIA
+• Keep state transitions deterministic
+• Ensure audio resources are loaded and handled safely
+• Clean up timers, event listeners, and animation loops
+• Do not expose secrets or internal service details in client code or UI copy
+
+Performance targets where practical:
+• No major avoidable layout shifts
+• Responsive control feedback
+• Optimized fonts and assets
+• Lazy-load noncritical resources
+• Avoid expensive continuous animations
+• Keep the landing page usable under a slow connection
+
+==================================================
+13. QA TEST MATRIX
+==================================================
+
+Test the following scenarios:
+
+Landing page:
+• Empty player name
+• Valid short nickname
+• 24-character nickname
+• Very long nickname
+• Non-Latin nickname
+• Keyboard-only submission
+• Screen-reader navigation
+• Start Game clicked repeatedly
+• Practice clicked repeatedly
+
+Quick Briefing:
+• Open and close using pointer
+• Open and close using keyboard
+• Escape to close when appropriate
+• Correct initial focus
+• Focus trapped inside modal
+• Focus restored after closing
+• Toggle settings with keyboard
+• Settings persist as intended
+• Modal at 200 percent zoom
+• Modal on 320px-wide viewport
+
+Practice:
+• Practice starts correctly
+• Practice completes correctly
+• Practice can be replayed
+• Full challenge can start after practice
+• No practice score incorrectly enters the production leaderboard
+
+Leaderboard:
+• Loading state
+• Empty state
+• Two entries
+• Many entries
+• Equal scores
+• Long names
+• Offline state
+• Failed synchronization
+• Successful reconnection
+• No private or technical system data displayed
+
+Audio:
+• Audio enabled
+• Audio disabled
+• Browser blocks autoplay
+• Voice announcement unavailable
+• Coach mode unavailable
+• Settings degrade gracefully
+
+Motion:
+• Normal motion
+• prefers-reduced-motion enabled
+• Background tab
+• Low-powered mobile device
+
+Browsers:
+• Current Chrome
+• Current Edge
+• Current Safari
+• Current Firefox
+• Modern mobile Safari
+• Modern Android Chrome
+
+==================================================
+14. DELIVERY FORMAT
+==================================================
+
+Work directly from the existing codebase.
+
+Before changing code, provide a concise audit containing:
+1. Current strengths
+2. Specific UX and accessibility issues
+3. Components and files that require changes
+4. Risks to existing functionality
+5. Planned implementation sequence
+
+Then implement the improvements.
+
+After implementation, provide:
+1. A concise change summary grouped by component
+2. Before-and-after copy changes
+3. Accessibility improvements
+4. Responsive improvements
+5. State-handling improvements
+6. Tests performed
+7. Any remaining risks or limitations
+8. A checklist showing whether each acceptance criterion passed
+
+Do not rewrite the entire application unless the current architecture makes incremental improvement unsafe.
+
+Do not remove working functionality for aesthetic reasons.
+
+==================================================
+15. ACCEPTANCE CRITERIA
+==================================================
+
+The work is complete only when all applicable items below pass:
+
+Visual design:
+[ ] The landing page retains its distinctive Flash Focus identity
+[ ] Spacing, typography, borders, radii, and colors are consistent
+[ ] Desktop composition is balanced
+[ ] Mobile composition is clear and uncluttered
+[ ] The preview supports the page without competing with the CTA
+
+Brand:
+[ ] “Different signals. One clear decision.” is used consistently
+[ ] Messaging feels sharp, premium, and non-corporate
+[ ] The Stroop Effect explanation is factual and non-diagnostic
+[ ] Terminology is consistent throughout
+
+Usability:
+[ ] The primary action is immediately obvious
+[ ] The practice action is clearly secondary
+[ ] The purpose of practice is clear
+[ ] No developer-style helper text remains
+[ ] Player-name errors are understandable
+[ ] First-time and returning-player flows are coherent
+
+Onboarding:
+[ ] INK COLOR and WORD COLOR are easy to distinguish
+[ ] Rule switching is clearly explained
+[ ] Controls, bonus, pause, and duration are accurate
+[ ] The final briefing CTA has an unambiguous result
+[ ] The practice completion screen offers a clear next step
+
+Leaderboard:
+[ ] Rank, player, and score are clearly presented
+[ ] Long names and ties are handled
+[ ] Loading, empty, offline, cached, and error states are polished
+[ ] Technical backend language is not exposed
+[ ] Practice scores cannot pollute the main leaderboard
+
+Accessibility:
+[ ] Keyboard-only use is complete
+[ ] Visible focus states exist everywhere
+[ ] Modal focus management is correct
+[ ] All form controls have accessible names
+[ ] Switch states are programmatically exposed
+[ ] Text and control contrast meets WCAG 2.2 AA
+[ ] Reduced-motion preferences are respected
+[ ] Status changes are announced appropriately
+[ ] 200 percent zoom remains usable
+
+Responsiveness:
+[ ] No horizontal scrolling at 320px
+[ ] No clipped hero text
+[ ] Modal content remains usable on mobile
+[ ] CTA controls remain easy to activate
+[ ] Leaderboard remains readable
+[ ] Desktop does not contain excessive dead space
+
+Technical quality:
+[ ] No console errors
+[ ] No broken existing game functions
+[ ] No duplicate submissions or game launches
+[ ] Timers and listeners are cleaned up
+[ ] Offline and failure states degrade gracefully
+[ ] No secrets or internal service information are exposed
+[ ] No unnecessary dependencies were introduced
+
+Final review:
+[ ] Copy is proofread
+[ ] Actual mechanics match all displayed instructions
+[ ] The experience feels like one coherent product
+[ ] Improvements are validated, not merely asserted
