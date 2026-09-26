@@ -1,0 +1,146 @@
+Enhance Flash Focus gameplay by replacing the existing Reverse Mode system with a dynamic task-switching system.
+
+Current issue:
+
+The game currently shows a "Borderless Shift / The rule has changed" banner every 15 seconds and only changes the rule for a single round. As a result, players spend almost the entire game selecting the ink color and encounter very few "Read the Word" challenges.
+
+Goal:
+
+Create a more balanced and engaging cognitive challenge that continuously tests selective attention and task switching throughout the 60-second game.
+
+Gameplay Rules
+
+Replace the current 15-second Reverse Mode timer completely.
+
+Use a dynamic rule assignment system:
+
+- Approximately 70% of rounds:
+  Select the INK COLOR
+
+- Approximately 30% of rounds:
+  Select the WORD COLOR
+
+Requirements:
+
+1. Randomly determine the rule for each new round while maintaining an overall 70/30 distribution during the session.
+
+2. Never allow more than 4 consecutive rounds of the same rule.
+
+3. Remove the large interruption banner:
+   "Borderless Shift"
+   "The rule has changed"
+
+4. Keep gameplay flowing continuously without pausing for rule changes.
+
+Visual Rule Indicator
+
+For every round display a clear rule indicator above the challenge word.
+
+INK COLOR mode:
+- 🔵 INK COLOR
+- Blue styling
+- Easy to recognize
+
+WORD COLOR mode:
+- 🟠 WORD COLOR
+- Orange styling
+- Easy to recognize
+
+Requirements:
+
+- Make the rule indicator highly visible.
+- Animate the indicator whenever the active rule changes.
+- Use a smooth pulse, fade, or glow effect.
+- Player must immediately understand the current rule.
+
+Voice Announcements
+
+Use SpeechSynthesis API.
+
+When the rule changes, announce it.
+
+INK COLOR announcements:
+- "Ink color."
+- "Choose the ink color."
+- "Focus on the color."
+
+WORD COLOR announcements:
+- "Read the word."
+- "Word color."
+- "Focus on the word."
+
+Requirements:
+
+- Randomly rotate announcements.
+- Never repeat the same announcement twice in a row.
+- Announcements should be short (under 1 second whenever possible).
+- Only speak when the rule changes.
+- Do not speak every round.
+- Voice should not interrupt gameplay.
+- Allow answering immediately while speech plays.
+
+Audio
+
+When the rule changes:
+
+INK COLOR:
+- Play a short positive "ding"
+
+WORD COLOR:
+- Play a short "whoosh" or "flip" sound
+
+Requirements:
+
+- Keep sounds subtle and professional.
+- Do not become annoying during long play sessions.
+
+Settings
+
+Add an independent setting:
+
+Voice Announcements:
+- ON
+- OFF
+
+This setting must be separate from:
+- Sound Effects
+- Coach Mode
+
+Accessibility
+
+If SpeechSynthesis is not available:
+
+- Continue displaying the visual rule indicator.
+- Continue gameplay normally.
+- Do not show errors.
+
+Game Balance
+
+Retain all existing features:
+
+- 60-second timer
+- Scoring system
+- Speed bonus
+- Streak multipliers
+- Leaderboard
+- Supabase integration
+- Voice feedback
+- Coach Mode
+- Audio controls
+- Fullscreen support
+- Practice mode
+- Statistics screen
+
+Do not modify scoring or leaderboard logic.
+
+Expected Outcome
+
+The game should feel more dynamic and engaging.
+
+Players should regularly switch between:
+- Selecting the INK COLOR
+- Selecting the WORD COLOR
+
+without relying on a predictable timer.
+
+INK COLOR should remain the primary mode (~70%), while WORD COLOR challenges should occur frequently enough to force continuous attention and prevent the player from operating on autopilot.
