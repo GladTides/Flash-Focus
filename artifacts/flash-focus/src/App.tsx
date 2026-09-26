@@ -30,13 +30,14 @@ import {
 
 type Screen = "home" | "countdown" | "practice" | "playing" | "results";
 type SessionKind = "practice" | "game";
-type RoundPhase = "waiting" | "active" | "resolving" | "shift_announcement";
+type RoundPhase = "waiting" | "active" | "resolving";
 type Feedback = { id: number; text: string; kind: "good" | "bad" | "neutral" | "moment"; duration: number };
-type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "highStreak" | "shift" | "moment" | "end" | "click" | "start";
-type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; promptAt: number; deadline: number };
+type SoundKind = "correct" | "incorrect" | "timeout" | "streak" | "highStreak" | "ruleInk" | "ruleWord" | "moment" | "end" | "click" | "start";
+type Round = { word: ColorName; color: ColorName; options: ColorName[]; shifted: boolean; ruleChanged: boolean; promptAt: number; deadline: number };
 type LeaderboardEntry = { name: string; score: number; avg: number; accuracy: number; bestStreak: number; moments: number; date: string };
 type LeaderboardStatus = "loading" | "ready" | "offline" | "error";
 type ColorName = "RED" | "BLUE" | "GREEN" | "YELLOW" | "ORANGE" | "PURPLE";
+type RuleSequenceState = { queue: boolean[]; lastRule: boolean | null; consecutive: number };
 
 const COLORS: Record<ColorName, { label: string; css: string }> = {
   RED: { label: "Red", css: "2 83% 62%" },
@@ -49,6 +50,9 @@ const COLORS: Record<ColorName, { label: string; css: string }> = {
 const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
 const BOARD_KEY = "flash-focus-top-ten";
 const NAME_KEY = "flash-focus-player-name";
+const SOUND_KEY = "flash-focus-sound";
+const VOICE_ANNOUNCEMENTS_KEY = "flash-focus-voice-announcements";
+const COACH_MODE_KEY = "flash-focus-coach-mode";
 const APP_DISCLAIMER = "For learning and fun only. Scores do not measure intelligence or job performance.";
 const APP_CONFIG = {
   competitionSlug: "flash-focus-2026",
@@ -78,6 +82,10 @@ const CORRECT_VOICE_FEEDBACK = [
   "Clean decision.",
   "Right on target.",
 ];
+const RULE_ANNOUNCEMENTS = {
+  ink: ["Ink color.", "Choose the ink color.", "Focus on the color."],
+  word: ["Read the word.", "Word color.", "Focus on the word."],
+} as const;
 
 function safeReadBoard(): LeaderboardEntry[] {
   try {
@@ -147,7 +155,40 @@ function answerWindow(elapsed: number, score: number, streak: number) {
   return Math.max(1700, 3000 - (Math.min(60, elapsed) / 60) * 1300);
 }
 
-function randomRound(shifted: boolean, elapsed = 0, score = 0, streak = 0): Round {
+function sequenceFits(previousRule: boolean | null, previousCount: number, sequence: boolean[]) {
+  let last = previousRule;
+  let count = previousCount;
+  for (const rule of sequence) {
+    if (rule === last) count += 1;
+    else {
+      last = rule;
+      count = 1;
+    }
+    if (count > 4) return false;
+  }
+  return true;
+}
+
+function shuffledRuleBlock(previousRule: boolean | null, previousCount: number) {
+  const template = [false, false, false, false, false, false, false, true, true, true];
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const candidate = [...template].sort(() => Math.random() - 0.5);
+    if (sequenceFits(previousRule, previousCount, candidate)) return candidate;
+  }
+  const fallback = [false, false, true, false, false, true, false, false, true, false];
+  return sequenceFits(previousRule, previousCount, fallback) ? fallback : [true, false, false, true, false, false, true, false, false, false];
+}
+
+function nextRule(state: RuleSequenceState) {
+  if (!state.queue.length) state.queue = shuffledRuleBlock(state.lastRule, state.consecutive);
+  const shifted = state.queue.shift() ?? false;
+  const ruleChanged = state.lastRule !== null && state.lastRule !== shifted;
+  state.consecutive = state.lastRule === shifted ? state.consecutive + 1 : 1;
+  state.lastRule = shifted;
+  return { shifted, ruleChanged };
+}
+
+function randomRound(shifted: boolean, ruleChanged: boolean, elapsed = 0, score = 0, streak = 0): Round {
   const word = randomColor();
   const matchChance = Math.max(0.2, 0.35 - (Math.min(60, elapsed) / 60) * 0.15);
   const matches = Math.random() < matchChance;
@@ -157,7 +198,7 @@ function randomRound(shifted: boolean, elapsed = 0, score = 0, streak = 0): Roun
   const correct = shifted ? word : color;
   const options = [correct, ...distractors.slice(0, optionCount - 1)].sort(() => Math.random() - 0.5);
   const promptAt = elapsed * 1000;
-  return { word, color, options, shifted, promptAt, deadline: promptAt + answerWindow(elapsed, score, streak) };
+  return { word, color, options, shifted, ruleChanged, promptAt, deadline: promptAt + answerWindow(elapsed, score, streak) };
 }
 
 function formatAverage(value: number) {
@@ -289,7 +330,28 @@ function Leaderboard({
   );
 }
 
-function HelpModal({ onClose }: { onClose: () => void }) {
+function HelpModal({
+  onClose,
+  soundOn,
+  voiceAnnouncementsOn,
+  coachModeOn,
+  onSound,
+  onVoiceAnnouncements,
+  onCoachMode,
+}: {
+  onClose: () => void;
+  soundOn: boolean;
+  voiceAnnouncementsOn: boolean;
+  coachModeOn: boolean;
+  onSound: () => void;
+  onVoiceAnnouncements: () => void;
+  onCoachMode: () => void;
+}) {
+  const settings = [
+    { label: "Sound effects", detail: "Dings, cues and answer sounds", enabled: soundOn, onToggle: onSound },
+    { label: "Voice announcements", detail: "Speaks only when the rule changes", enabled: voiceAnnouncementsOn, onToggle: onVoiceAnnouncements },
+    { label: "Coach mode", detail: "Occasional spoken performance feedback", enabled: coachModeOn, onToggle: onCoachMode },
+  ];
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="help-title" data-testid="dialog-help">
       <div className="modal">
@@ -300,16 +362,39 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           </div>
           <button className="icon-button" onClick={onClose} aria-label="Close help" data-testid="button-close-help"><X size={17} /></button>
         </div>
-        <p className="briefing-lede">Stay sharp. The rule will change.</p>
-        <p><strong>“Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.”</strong></p>
+        <p className="briefing-lede">Stay sharp. The rule can change any round.</p>
+        <p><strong>“Follow the rule cue: choose the INK COLOR or choose the WORD COLOR.”</strong></p>
         <ul className="help-list">
           <li><span className="keycap">1–6</span><span><strong>CHOOSE</strong><small>Click a color or press 1–6.</small></span></li>
-          <li><span className="keycap">NORMAL</span><span><strong>COLOR</strong><small>Choose the INK COLOR, not the word.</small></span></li>
-          <li><span className="keycap">SHIFT</span><span><strong>SWITCH</strong><small>Every 15 seconds, the rule changes.<br />When you see BORDERLESS SHIFT, choose what the WORD SAYS instead.</small></span></li>
-          <li><span className="keycap">BONUS</span><span><strong>ADAPT</strong><small>Keep a streak of 5+ and correctly handle the rule change to earn:</small><b>BORDERLESS MOMENT!</b><small>You adapted to the rule change.</small><b>+50 BONUS</b></span></li>
+          <li><span className="keycap">BLUE</span><span><strong>INK COLOR</strong><small>Choose the color used to display the word.</small></span></li>
+          <li><span className="keycap">ORANGE</span><span><strong>WORD COLOR</strong><small>Choose the color named by the word itself.</small></span></li>
+          <li><span className="keycap">SWITCH</span><span><strong>STAY READY</strong><small>Rules are mixed throughout the session and can change after any answer.</small></span></li>
+          <li><span className="keycap">BONUS</span><span><strong>ADAPT</strong><small>Keep a streak of 5+ and correctly handle a WORD COLOR challenge to earn:</small><b>BORDERLESS MOMENT!</b><b>+50 BONUS</b></span></li>
           <li><span className="keycap">P</span><span><strong>PAUSE</strong><small>Pause or resume at any time.</small></span></li>
           <li><span className="keycap">60s</span><span><strong>GO!</strong><small>Score as many points as possible in one minute.</small></span></li>
         </ul>
+        <section className="settings-panel" aria-labelledby="settings-title">
+          <div>
+            <span className="eyebrow">settings</span>
+            <h3 id="settings-title">Audio &amp; guidance</h3>
+          </div>
+          <div className="settings-list">
+            {settings.map((setting) => (
+              <div className="setting-row" key={setting.label}>
+                <span><strong>{setting.label}</strong><small>{setting.detail}</small></span>
+                <button
+                  className={setting.enabled ? "setting-toggle is-on" : "setting-toggle"}
+                  type="button"
+                  role="switch"
+                  aria-checked={setting.enabled}
+                  onClick={setting.onToggle}
+                >
+                  {setting.enabled ? "ON" : "OFF"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
         <div className="modal-actions">
           <button className="primary-button" onClick={onClose} data-testid="button-got-it">GOT IT — LET’S GO <ArrowRight size={16} style={{ verticalAlign: "middle", marginLeft: 6 }} /></button>
         </div>
@@ -357,7 +442,7 @@ function HomeScreen({
           <h2 className="hero-subtitle">A Borderless Thinking Challenge</h2>
           <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
           <p>Across Al-Futtaim, every day brings changing information, competing signals and fast decisions. Flash Focus puts your focus and adaptability to the test.</p>
-          <div className="rule-line">Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.</div>
+          <div className="rule-line">Follow the rule cue: choose the INK COLOR or the WORD COLOR. Stay ready — it can switch after any round.</div>
           <p className="signal-line">Different signals. One clear decision.</p>
           <form className="name-form" onSubmit={(event) => { event.preventDefault(); onStart(); }}>
             <label htmlFor="player-name">Player name</label>
@@ -414,7 +499,6 @@ function GameScreen({
   onSound,
   onFullscreen,
   soundOn,
-  banner,
   feedback,
   lastAnswer,
   phase,
@@ -439,7 +523,6 @@ function GameScreen({
   onSound: () => void;
   onFullscreen: () => void;
   soundOn: boolean;
-  banner: boolean;
   feedback: Feedback | null;
   lastAnswer: "good" | "bad" | null;
   phase: RoundPhase;
@@ -471,15 +554,20 @@ function GameScreen({
         <section className="round-panel" aria-live="polite">
           <div className="round-meta">
             <span className="round-counter" data-testid="text-round-counter">{sessionKind === "practice" ? "practice / 05 seconds" : `round ${String(total + 1).padStart(2, "0")}`}</span>
-            <span className={round?.shifted ? "shift-pill" : "mode-pill"} data-testid="badge-mode">
-              <strong>{round?.shifted ? "READ THE WORD" : "NORMAL"}</strong>
-              {!round?.shifted && <span>SELECT THE INK COLOR</span>}
+            <span
+              key={`${round?.promptAt ?? 0}-${round?.shifted ? "word" : "ink"}`}
+              className={`rule-indicator ${round?.shifted ? "is-word" : "is-ink"} ${round?.ruleChanged ? "is-change" : ""}`}
+              data-testid="badge-mode"
+            >
+              <i aria-hidden="true" />
+              <strong>{round?.shifted ? "WORD COLOR" : "INK COLOR"}</strong>
+              <span>{round?.shifted ? "Read the word" : "See the ink"}</span>
             </span>
           </div>
           <div className={`challenge-card ${lastAnswer === "good" ? "is-correct" : lastAnswer === "bad" ? "is-wrong" : ""}`} data-testid="challenge-card">
             {round && <span className="challenge-word" style={{ color: `hsl(${COLORS[round.color].css})` }} data-testid="text-challenge-word">{COLORS[round.word].label.toUpperCase()}</span>}
           </div>
-          <p className="answer-copy">{round?.shifted ? "READ THE WORD" : "SELECT THE INK COLOR"}</p>
+          <p className="answer-copy">{round?.shifted ? "SELECT THE WORD COLOR" : "SELECT THE INK COLOR"}</p>
           <div className="answer-grid" role="group" aria-label="Color answers">
             {(round?.options ?? []).map((color, index) => (
               <button
@@ -499,7 +587,6 @@ function GameScreen({
           {sessionKind === "practice" && <p className="pause-note">Practice does not count toward your score.</p>}
         </section>
       </main>
-      {banner && <div className="shift-banner" data-testid="banner-shift"><strong>BORDERLESS SHIFT!</strong><span>The rule has changed — now do the opposite.</span></div>}
       {feedback && (
         <div
           className={`toast-feedback is-${feedback.kind}`}
@@ -629,7 +716,7 @@ function ResultsScreen({
             <div className="result-metric"><strong>{incorrect}</strong><span>incorrect</span></div>
             <div className="result-metric"><strong>{timeouts}</strong><span>timeouts</span></div>
             <div className="result-metric"><strong data-testid="text-result-streak">{bestStreak}</strong><span>best streak</span></div>
-            <div className="result-metric"><strong>{completedShifts}</strong><span>shifts completed</span></div>
+            <div className="result-metric"><strong>{completedShifts}</strong><span>word rounds</span></div>
             <div className="result-metric"><strong>{moments}</strong><span>Borderless Moments</span></div>
             <div className="result-metric"><strong>{leaderboardPosition ? `#${leaderboardPosition}` : "—"}</strong><span>leaderboard position</span></div>
           </div>
@@ -674,13 +761,14 @@ function AppHome() {
   const [moments, setMoments] = useState(0);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [paused, setPaused] = useState(false);
-  const [banner, setBanner] = useState(false);
   const [phase, setPhase] = useState<RoundPhase>("waiting");
   const [resolvedCorrect, setResolvedCorrect] = useState<ColorName | null>(null);
   const [lastAnswer, setLastAnswer] = useState<"good" | "bad" | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
+  const [voiceAnnouncementsOn, setVoiceAnnouncementsOn] = useState(true);
+  const [coachModeOn, setCoachModeOn] = useState(false);
   const [practiceNotice, setPracticeNotice] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardStatus, setLeaderboardStatus] = useState<LeaderboardStatus>("loading");
@@ -690,13 +778,13 @@ function AppHome() {
   const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null);
   const activeElapsed = useRef(0);
   const lastTickAt = useRef(0);
-  const nextShiftAt = useRef(15);
   const ending = useRef(false);
   const answerLocked = useRef(false);
   const feedbackSequence = useRef(0);
   const lastFeedbackText = useRef("");
+  const lastRuleAnnouncement = useRef("");
+  const ruleSequence = useRef<RuleSequenceState>({ queue: [], lastRule: null, consecutive: 0 });
   const transitionTimer = useRef<number | null>(null);
-  const shiftTimer = useRef<number | null>(null);
   const secureSessionPromise = useRef<Promise<string | null> | null>(null);
   const roundAttempts = useRef<RoundAttemptPayload[]>([]);
   const audioContext = useRef<AudioContext | null>(null);
@@ -738,7 +826,11 @@ function AppHome() {
   useEffect(() => {
     try {
       setNameState((localStorage.getItem(NAME_KEY) || "").slice(0, 18));
-      setSoundOn(localStorage.getItem("flash-focus-sound") === "on");
+      const storedSound = localStorage.getItem(SOUND_KEY);
+      const storedCoach = localStorage.getItem(COACH_MODE_KEY);
+      setSoundOn(storedSound === "on");
+      setVoiceAnnouncementsOn(localStorage.getItem(VOICE_ANNOUNCEMENTS_KEY) !== "off");
+      setCoachModeOn(storedCoach === null ? storedSound === "on" : storedCoach === "on");
     } catch { /* unavailable storage */ }
     setLeaderboard(safeReadBoard());
     void refreshLeaderboard("top10");
@@ -746,7 +838,7 @@ function AppHome() {
 
   useEffect(() => () => {
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
-    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }, []);
 
   useEffect(() => {
@@ -837,8 +929,13 @@ function AppHome() {
           scheduleTone(540, 820, 0.11, 0, "triangle", 0.27);
           scheduleTone(620, 960, 0.11, 0.095, "triangle", 0.24);
           break;
-        case "shift":
-          scheduleNoise(0.28, 0, 0.34);
+        case "ruleInk":
+          scheduleTone(620, 880, 0.12, 0, "triangle", 0.18);
+          scheduleTone(820, 1040, 0.09, 0.08, "sine", 0.1);
+          break;
+        case "ruleWord":
+          scheduleNoise(0.2, 0, 0.2);
+          scheduleTone(420, 290, 0.14, 0.03, "sine", 0.09);
           break;
         case "moment":
           scheduleNoise(0.22, 0, 0.38);
@@ -861,7 +958,7 @@ function AppHome() {
   }, [soundOn]);
 
   const speakFeedback = useCallback((text: string) => {
-    if (!soundOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!coachModeOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
@@ -873,7 +970,27 @@ function AppHome() {
     } catch {
       // Speech synthesis is optional and can be blocked by the browser.
     }
-  }, [soundOn]);
+  }, [coachModeOn]);
+
+  const announceRuleChange = useCallback((shifted: boolean) => {
+    playTone(shifted ? "ruleWord" : "ruleInk");
+    if (!voiceAnnouncementsOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      const announcements = shifted ? RULE_ANNOUNCEMENTS.word : RULE_ANNOUNCEMENTS.ink;
+      const choices = announcements.filter((message) => message !== lastRuleAnnouncement.current);
+      const message = choices[Math.floor(Math.random() * choices.length)] ?? announcements[0];
+      lastRuleAnnouncement.current = message;
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = "en-US";
+      utterance.rate = 1.28;
+      utterance.pitch = shifted ? 0.98 : 1.04;
+      utterance.volume = 0.78;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // The visual rule indicator remains available when speech is unsupported.
+    }
+  }, [playTone, voiceAnnouncementsOn]);
 
   useEffect(() => {
     const playButtonClick = (event: PointerEvent) => {
@@ -893,7 +1010,25 @@ function AppHome() {
       if (audioMasterGain.current && audioContext.current) {
         audioMasterGain.current.gain.setValueAtTime(next ? 0.72 : 0, audioContext.current.currentTime);
       }
-      try { localStorage.setItem("flash-focus-sound", next ? "on" : "off"); } catch { /* optional */ }
+      try { localStorage.setItem(SOUND_KEY, next ? "on" : "off"); } catch { /* optional */ }
+      return next;
+    });
+  };
+
+  const toggleVoiceAnnouncements = () => {
+    setVoiceAnnouncementsOn((value) => {
+      const next = !value;
+      if (!next && typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      try { localStorage.setItem(VOICE_ANNOUNCEMENTS_KEY, next ? "on" : "off"); } catch { /* optional */ }
+      return next;
+    });
+  };
+
+  const toggleCoachMode = () => {
+    setCoachModeOn((value) => {
+      const next = !value;
+      if (!next && typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      try { localStorage.setItem(COACH_MODE_KEY, next ? "on" : "off"); } catch { /* optional */ }
       return next;
     });
   };
@@ -907,11 +1042,12 @@ function AppHome() {
     setScore(0); setStreak(0); setBestStreak(0); setTotal(0); setCorrect(0); setIncorrect(0); setTimeouts(0);
     setCompletedShifts(0); setMoments(0); setReactionTimes([]); setLeaderboardPosition(null);
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
-    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
-    transitionTimer.current = null; shiftTimer.current = null;
+    transitionTimer.current = null;
     setRemaining(kind === "practice" ? 5 : 60); setRound(null); setLastAnswer(null); setFeedback(null);
     setPhase("waiting"); setResolvedCorrect(null);
-    activeElapsed.current = 0; nextShiftAt.current = 15; answerLocked.current = false; setBanner(false);
+    activeElapsed.current = 0; answerLocked.current = false;
+    ruleSequence.current = { queue: [], lastRule: null, consecutive: 0 };
+    lastRuleAnnouncement.current = "";
     roundAttempts.current = [];
     secureSessionPromise.current = kind === "game" && competitionApiConfigured
       ? startSecureSession(cleanName).then((session) => session.sessionId).catch(() => null)
@@ -928,7 +1064,8 @@ function AppHome() {
           activeElapsed.current = 0;
           lastTickAt.current = performance.now();
           setRemaining(sessionKind === "practice" ? 5 : 60);
-          setRound(randomRound(false, 0, 0, 0));
+           const firstRule = nextRule(ruleSequence.current);
+           setRound(randomRound(firstRule.shifted, firstRule.ruleChanged, 0, 0, 0));
           setPhase("active");
           setScreen(sessionKind === "practice" ? "practice" : "playing");
           return 0;
@@ -944,8 +1081,8 @@ function AppHome() {
     if (ending.current) return;
     ending.current = true;
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
-    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
-    transitionTimer.current = null; shiftTimer.current = null;
+    transitionTimer.current = null;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setFeedback(null); setPhase("waiting");
     if (sessionKind === "practice") {
       setScreen("home"); setPracticeNotice(true); setRound(null); return;
@@ -992,14 +1129,16 @@ function AppHome() {
     }
   }, [bestStreak, correct, leaderboard, moments, name, playTone, reactionTimes, refreshLeaderboard, score, sessionKind, total]);
 
-  const showNextRound = useCallback((shifted = false) => {
+  const showNextRound = useCallback(() => {
     answerLocked.current = false;
     setFeedback(null);
     setResolvedCorrect(null);
     setLastAnswer(null);
-    setRound(randomRound(shifted, activeElapsed.current, score, streak));
+    const next = nextRule(ruleSequence.current);
+    setRound(randomRound(next.shifted, next.ruleChanged, activeElapsed.current, score, streak));
     setPhase("active");
-  }, [score, streak]);
+    if (next.ruleChanged) announceRuleChange(next.shifted);
+  }, [announceRuleChange, score, streak]);
 
   const pickFriendlyFeedback = useCallback(() => {
     const choices = FRIENDLY_FEEDBACK.filter((message) => message.text !== lastFeedbackText.current);
@@ -1016,7 +1155,7 @@ function AppHome() {
     transitionTimer.current = window.setTimeout(() => {
       transitionTimer.current = null;
       setFeedback(null);
-      showNextRound(false);
+      showNextRound();
     }, duration);
   }, [showNextRound]);
 
@@ -1038,8 +1177,9 @@ function AppHome() {
     }
     if (sessionKind === "practice") {
       playTone("timeout");
-      speakFeedback("Time's up. Choose the ink color.");
-      resolveAndAdvance("Time’s up — choose the ink color.", "neutral", 650);
+      const ruleReminder = round.shifted ? "read the word" : "choose the ink color";
+      speakFeedback(`Time's up. ${ruleReminder}.`);
+      resolveAndAdvance(`Time’s up — ${ruleReminder}.`, "neutral", 650);
       return;
     }
     setTotal((value) => value + 1);
@@ -1049,7 +1189,7 @@ function AppHome() {
     playTone("timeout");
     const message = pickFriendlyFeedback();
     speakFeedback(message.voice);
-    resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message.text}` : message.text, "neutral", 650);
+    resolveAndAdvance(message.text, "neutral", 650);
   }, [paused, phase, pickFriendlyFeedback, playTone, resolveAndAdvance, round, sessionKind, speakFeedback]);
 
   useEffect(() => {
@@ -1060,32 +1200,16 @@ function AppHome() {
       const now = performance.now();
       const delta = (now - lastTickAt.current) / 1000;
       lastTickAt.current = now;
-      if (paused || phase === "shift_announcement") return;
+      if (paused) return;
       activeElapsed.current = Math.min(duration, activeElapsed.current + delta);
       const elapsed = activeElapsed.current;
       const next = Math.max(0, duration - elapsed);
       setRemaining(next);
       if (phase === "active" && round && elapsed * 1000 >= round.deadline) handleTimeout();
-      if (phase === "active" && sessionKind === "game" && elapsed >= nextShiftAt.current && nextShiftAt.current <= 45 && !answerLocked.current) {
-        answerLocked.current = true;
-        setRound(null);
-        setPhase("shift_announcement");
-        setBanner(true);
-        playTone("shift");
-        nextShiftAt.current += 15;
-        if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
-        shiftTimer.current = window.setTimeout(() => {
-          shiftTimer.current = null;
-          setBanner(false);
-          answerLocked.current = false;
-          setRound(randomRound(true, activeElapsed.current, score, streak));
-          setPhase("active");
-        }, 1800);
-      }
       if (elapsed >= duration) finishSession();
     }, 80);
     return () => window.clearInterval(timer);
-  }, [finishSession, handleTimeout, paused, phase, playTone, round, score, screen, sessionKind, streak]);
+  }, [finishSession, handleTimeout, paused, phase, round, screen, sessionKind]);
 
   useEffect(() => {
     if (screen !== "playing" && screen !== "practice") return;
@@ -1162,10 +1286,10 @@ function AppHome() {
       if (borderlessMoment) setMoments((value) => value + 1);
       const reachedNewTier = currentMultiplier(nextStreak) > currentMultiplier(streak);
       playTone(borderlessMoment ? "moment" : reachedNewTier ? "streak" : nextStreak >= 15 ? "highStreak" : "correct");
-      if (borderlessMoment) speakFeedback("Borderless moment! You adapted.");
+      if (borderlessMoment) speakFeedback("Borderless moment! You handled the word rule.");
       else if (Math.random() < 0.2) speakFeedback(CORRECT_VOICE_FEEDBACK[Math.floor(Math.random() * CORRECT_VOICE_FEEDBACK.length)]);
       resolveAndAdvance(
-        borderlessMoment ? "BORDERLESS MOMENT!\nYou adapted to the rule change.\n+50 BONUS" : round.shifted ? `SHIFT COMPLETE · +${earned}` : `+${earned} · ${Math.round(reaction)} ms`,
+        borderlessMoment ? "BORDERLESS MOMENT!\nYou handled the word rule.\n+50 BONUS" : `+${earned} · ${Math.round(reaction)} ms`,
         borderlessMoment ? "moment" : "good",
         borderlessMoment ? 850 : 280,
       );
@@ -1176,7 +1300,7 @@ function AppHome() {
       playTone("incorrect");
       const message = pickFriendlyFeedback();
       speakFeedback(message.voice);
-      resolveAndAdvance(round.shifted ? `SHIFT COMPLETE · ${message.text}` : message.text, "bad", 650);
+      resolveAndAdvance(message.text, "bad", 650);
     }
   };
 
@@ -1195,7 +1319,7 @@ function AppHome() {
   };
   const home = () => {
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
-    if (shiftTimer.current) window.clearTimeout(shiftTimer.current);
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setScreen("home"); setPaused(false); setRound(null); setFeedback(null); setPhase("waiting");
   };
 
@@ -1229,9 +1353,19 @@ function AppHome() {
     <>
       {screen === "home" && <HomeScreen name={name} setName={setName} onStart={() => beginCountdown("game")} onPractice={() => beginCountdown("practice")} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} practiceNotice={practiceNotice} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
-      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} banner={banner} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} />}
+      {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={() => setShowHelp(true)} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} />}
       {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={() => setShowHelp(true)} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showHelp && (
+        <HelpModal
+          onClose={() => setShowHelp(false)}
+          soundOn={soundOn}
+          voiceAnnouncementsOn={voiceAnnouncementsOn}
+          coachModeOn={coachModeOn}
+          onSound={toggleSound}
+          onVoiceAnnouncements={toggleVoiceAnnouncements}
+          onCoachMode={toggleCoachMode}
+        />
+      )}
       <AppFooter />
     </>
   );

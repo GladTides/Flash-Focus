@@ -8,7 +8,7 @@ https://flash-focus-pi.vercel.app
 
 ## Objective
 
-Tap the COLOR you see — not the word you read. Then, when the rule changes, do the opposite.
+Follow each round’s rule cue: choose the INK COLOR or choose the WORD COLOR.
 
 The challenge tests:
 
@@ -23,9 +23,9 @@ The challenge tests:
 - Dynamic difficulty adjustment
 - Speed bonus scoring
 - Streak multipliers
-- Reverse Mode challenges
-- Voice feedback
-- Sound effects
+- Dynamic 70/30 task switching with no more than four identical rules in a row
+- Animated INK COLOR and WORD COLOR indicators
+- Independent rule announcements, coach feedback, and sound-effect controls
 - Shared Supabase leaderboard across browsers and devices
 - Anonymous participant sessions with server-validated score submissions
 - Top 10, Top 100, My Rank, This Week, and All Time views

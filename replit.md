@@ -38,8 +38,8 @@ Flash Focus is a 60-second Stroop-inspired attention game with a privacy-safe sh
 
 ## Product
 
-- Normal mode selects ink color; Borderless Shift selects the word.
-- One-minute sessions include streak multipliers, speed bonuses, Borderless Moments, audio/voice feedback, and accessible keyboard controls.
+- Each round independently assigns INK COLOR or WORD COLOR from a balanced 70/30 sequence, with no more than four identical rules in a row.
+- One-minute sessions include streak multipliers, speed bonuses, Borderless Moments, separate sound/rule-announcement/coach controls, and accessible keyboard controls.
 - Shared leaderboard scopes include Top 10, Top 100, My Rank, This Week, and All Time.
 - Nickname validation rejects identifying/contact-like strings and the participant can remove their leaderboard entry.
 
