@@ -351,6 +351,19 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible, a:focus-vis
 .results-layout h1 { font-size: clamp(3.7rem, 8vw, 7.5rem); margin: 13px 0 22px; }
 .results-layout h1 em { color: hsl(var(--primary)); font-style: normal; }
 .results-lede { max-width: 480px; color: hsl(var(--muted-foreground)); line-height: 1.6; }
+.performance-title-section { max-width: 590px; margin: 20px 0 22px; }
+.performance-title-heading { margin: 0 0 9px; color: hsl(var(--accent)); font-family: var(--app-font-mono); font-size: .64rem; letter-spacing: .14em; }
+.performance-title-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.performance-title-card { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: linear-gradient(120deg, hsl(var(--ff-surface) / .88), hsl(var(--background) / .75)); }
+.performance-title-icon { flex: 0 0 auto; font-size: 1.1rem; line-height: 1.35; }
+.performance-title-card h3 { margin: 0; color: hsl(var(--foreground)); font-family: var(--app-font-mono); font-size: .69rem; letter-spacing: .04em; text-transform: uppercase; }
+.performance-title-card p, .performance-title-empty { margin: 4px 0 0; color: hsl(var(--muted-foreground)); font-size: .72rem; line-height: 1.4; }
+.performance-title-empty { padding: 9px 12px; border: 1px dashed hsl(var(--border)); border-radius: 10px; }
+.performance-title-card.is-speed-demon { border-color: hsl(var(--ff-cyan) / .42); }
+.performance-title-card.is-precision-master { border-color: hsl(var(--ff-word) / .42); }
+.performance-title-card.is-adaptability-ace { border-color: hsl(var(--ff-success) / .42); }
+.performance-title-card.is-streak-champion, .performance-title-card.is-elite-performer { border-color: hsl(var(--ff-yellow) / .42); }
+.performance-title-card.is-focus-specialist { border-color: hsl(var(--accent) / .42); }
 .score-hero { display: flex; align-items: end; gap: 18px; margin: 30px 0; }
 .score-number { font-family: var(--app-font-mono); font-size: clamp(3rem, 7vw, 5.4rem); letter-spacing: -.09em; line-height: .8; color: hsl(var(--foreground)); }
 .score-label { color: hsl(var(--muted-foreground)); font-size: .76rem; text-transform: uppercase; letter-spacing: .12em; }

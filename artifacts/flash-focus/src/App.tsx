@@ -21,6 +21,7 @@ import NotFound from "@/pages/not-found";
 import { GameDialog } from "@/components/game-dialog";
 import { PLAYER_NAME_MAX, PLAYER_NAME_MESSAGES, isSafeParticipantName, normalizePlayerName, playerNameProblem } from "./lib/player-name";
 import { getRankAchievement, withDisplayRanks } from "./lib/leaderboard-rank";
+import { getPerformanceTitles } from "./lib/performance-titles";
 import { readBriefingSeen, writeBriefingSeen } from "./lib/onboarding-storage";
 import {
   competitionApiConfigured,
@@ -768,6 +769,8 @@ function ResultsScreen({
   average,
   bestStreak,
   completedShifts,
+  wordColorSwitchAttempts,
+  wordColorSwitchCorrect,
   moments,
   leaderboardPosition,
   leaderboard,
@@ -793,6 +796,8 @@ function ResultsScreen({
   average: number;
   bestStreak: number;
   completedShifts: number;
+  wordColorSwitchAttempts: number;
+  wordColorSwitchCorrect: number;
   moments: number;
   leaderboardPosition: number | null;
   leaderboard: LeaderboardEntry[];
@@ -825,6 +830,16 @@ function ResultsScreen({
     leaderboardPosition >= 1;
   const rankAchievement = hasVerifiedRank ? getRankAchievement(leaderboardPosition) : null;
   const isTopTen = hasVerifiedRank && leaderboardPosition <= 10;
+  const performanceTitles = getPerformanceTitles({
+    score,
+    correct,
+    total,
+    averageReactionMs: average,
+    bestStreak,
+    wordColorSwitchAttempts,
+    wordColorSwitchCorrect,
+    isTopTen,
+  });
   return (
     <div className="screen-shell">
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
@@ -833,6 +848,24 @@ function ResultsScreen({
           <span className="eyebrow">session complete / {name}</span>
           <h1 className="display">{title}</h1>
           <p className="results-lede">Sixty seconds, done. No labels, no verdicts. Just how you read the signals when they crossed.</p>
+          <section className="performance-title-section" aria-labelledby="performance-title-heading" data-testid="performance-titles">
+            <h2 id="performance-title-heading" className="performance-title-heading">SESSION HONORS</h2>
+            {performanceTitles.length ? (
+              <ul className="performance-title-list">
+                {performanceTitles.map((performanceTitle) => (
+                  <li key={performanceTitle.id} className={`performance-title-card is-${performanceTitle.id}`}>
+                    <span className="performance-title-icon" aria-hidden="true">{performanceTitle.icon}</span>
+                    <div>
+                      <h3>{performanceTitle.label}</h3>
+                      <p>{performanceTitle.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="performance-title-empty">Play again to unlock a performance title.</p>
+            )}
+          </section>
           {hasVerifiedRank && (
             <div className="results-rank-banner" data-testid="text-result-rank-banner" aria-label={`Leaderboard rank ${leaderboardPosition}`}>
               <span aria-hidden="true">🏆</span>
@@ -924,6 +957,7 @@ function AppHome() {
   const [incorrect, setIncorrect] = useState(0);
   const [timeouts, setTimeouts] = useState(0);
   const [completedShifts, setCompletedShifts] = useState(0);
+  const [wordColorSwitchPerformance, setWordColorSwitchPerformance] = useState({ attempts: 0, correct: 0 });
   const [moments, setMoments] = useState(0);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [paused, setPaused] = useState(false);
@@ -955,6 +989,7 @@ function AppHome() {
   const transitionTimer = useRef<number | null>(null);
   const secureSessionPromise = useRef<Promise<string | null> | null>(null);
   const roundAttempts = useRef<RoundAttemptPayload[]>([]);
+  const wordColorSwitchOutcomes = useRef<boolean[]>([]);
   const audioContext = useRef<AudioContext | null>(null);
   const audioMasterGain = useRef<GainNode | null>(null);
   const audioCompressor = useRef<DynamicsCompressorNode | null>(null);
@@ -1220,6 +1255,7 @@ function AppHome() {
     setCountdown(3); setScreen("countdown"); playTone("start");
     setScore(0); setStreak(0); setBestStreak(0); setTotal(0); setCorrect(0); setIncorrect(0); setTimeouts(0);
     setCompletedShifts(0); setMoments(0); setReactionTimes([]); setLeaderboardPosition(null);
+    setWordColorSwitchPerformance({ attempts: 0, correct: 0 });
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
     transitionTimer.current = null;
     setRemaining(kind === "practice" ? 5 : 60); setRound(null); setLastAnswer(null); setFeedback(null);
@@ -1228,6 +1264,7 @@ function AppHome() {
     ruleSequence.current = { queue: [], lastRule: null, consecutive: 0 };
     lastRuleAnnouncement.current = "";
     roundAttempts.current = [];
+    wordColorSwitchOutcomes.current = [];
     secureSessionPromise.current = kind === "game" && competitionApiConfigured
       ? startSecureSession(cleanName).then((session) => session.sessionId).catch(() => null)
       : Promise.resolve(null);
@@ -1294,6 +1331,10 @@ function AppHome() {
     playTone("end");
     const avg = reactionTimes.length ? reactionTimes.reduce((sum, value) => sum + value, 0) / reactionTimes.length : 0;
     setAverage(avg);
+    setWordColorSwitchPerformance({
+      attempts: wordColorSwitchOutcomes.current.length,
+      correct: wordColorSwitchOutcomes.current.filter(Boolean).length,
+    });
     const accuracy = total ? Math.round((correct / total) * 100) : 0;
     const entry: LeaderboardEntry = {
       name: name.trim(),
@@ -1388,6 +1429,7 @@ function AppHome() {
         reactionMs: null,
         windowMs: round.deadline - round.promptAt,
       });
+      if (round.ruleChanged && round.shifted) wordColorSwitchOutcomes.current.push(false);
     }
     if (sessionKind === "practice") {
       playTone("timeout");
@@ -1473,6 +1515,7 @@ function AppHome() {
         reactionMs: reaction,
         windowMs: round.deadline - round.promptAt,
       });
+      if (round.ruleChanged && round.shifted) wordColorSwitchOutcomes.current.push(isCorrect);
     }
     setResolvedCorrect(expected);
     setLastAnswer(isCorrect ? "good" : "bad");
@@ -1569,7 +1612,7 @@ function AppHome() {
       {screen === "home" && <HomeScreen name={name} setName={setName} nameError={nameError} nameInputRef={nameInputRef} onNameBlur={() => { if (name.trim()) setNameAttempted(true); }} onStart={requestGame} onPractice={requestPractice} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
       {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} dialogOpen={modal !== null} />}
-      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={openHelp} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
+      {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} wordColorSwitchAttempts={wordColorSwitchPerformance.attempts} wordColorSwitchCorrect={wordColorSwitchPerformance.correct} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={openHelp} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
       {(modal === "help" || modal === "game-briefing" || modal === "practice-briefing") && (
         <HelpModal
           key={modal}
