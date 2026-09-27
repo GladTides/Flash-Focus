@@ -541,6 +541,14 @@ function HomeScreen({
         <section className="hero-copy" aria-labelledby="hero-title">
           <span className="eyebrow">Borderless Arcade / 01</span>
           <h1 className="display" id="hero-title">FLASH <em>FOCUS</em></h1>
+          <section className="competition-promo" aria-labelledby="competition-promo-title">
+            <span className="competition-promo-mark" aria-hidden="true">🎯</span>
+            <div className="competition-promo-copy">
+              <h2 id="competition-promo-title">Can you make the Top 10?</h2>
+              <p>Challenge your attention, reaction speed and focus.</p>
+              <p>Play Flash Focus and see where you rank on the leaderboard.</p>
+            </div>
+          </section>
           <p className="tagline">Different signals. One clear decision.</p>
           <p className="hero-support">Follow the active rule, filter competing signals, and adapt when the rule changes.</p>
           <ul className="fact-row" aria-label="Challenge facts">
@@ -810,6 +818,7 @@ function ResultsScreen({
     bestStreak >= 15 ? "FOCUS MACHINE" :
     accuracy >= 80 ? "CLEAR THINKER" :
     accuracy >= 60 ? "STEADY FOCUS" : "FOCUS EXPLORER";
+  const isTopTen = leaderboardStatus === "ready" && leaderboardPosition !== null && leaderboardPosition >= 1 && leaderboardPosition <= 10;
   return (
     <div className="screen-shell">
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
@@ -819,6 +828,17 @@ function ResultsScreen({
           <h1 className="display">{title}</h1>
           <p className="results-lede">Sixty seconds, done. No labels, no verdicts. Just how you read the signals when they crossed.</p>
           <div className="score-hero"><span className="score-number" data-testid="text-final-score">{score.toLocaleString()}</span><span className="score-label">points<br />final score</span></div>
+          <div className="results-competition-slot" aria-live="polite" aria-atomic="true">
+            {leaderboardStatus !== "loading" && (
+              <section className={`results-competition-message${isTopTen ? " is-top-ten" : ""}`}>
+                <span className="competition-promo-mark" aria-hidden="true">{isTopTen ? "🏆" : "🎯"}</span>
+                <div className="competition-promo-copy">
+                  <h2>{isTopTen ? "Congratulations! You're in the Top 10." : "Can you make the Top 10?"}</h2>
+                  {!isTopTen && <p>Play again and climb the leaderboard.</p>}
+                </div>
+              </section>
+            )}
+          </div>
           <div className="results-actions">
             <button className="primary-button" onClick={onRestart} data-testid="button-play-again">Play again <RotateCcw size={16} style={{ verticalAlign: "middle", marginLeft: 7 }} /></button>
             <button className="secondary-button" onClick={onHome} data-testid="button-back-home"><ArrowLeft size={16} style={{ verticalAlign: "middle", marginRight: 7 }} /> Back to start</button>
@@ -1278,6 +1298,10 @@ function AppHome() {
     setLeaderboardPosition(mine ? mine.displayRank : null);
     setLeaderboard(updated);
     safeWriteBoard(updated);
+    if (competitionApiConfigured) {
+      setLeaderboardPosition(null);
+      setLeaderboardStatus("loading");
+    }
     setScreen("results");
     setRound(null);
     const attempts = roundAttempts.current.slice();

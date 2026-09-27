@@ -477,6 +477,43 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible, a:focus-vis
 .hero-copy h1 { margin: 14px 0 18px; overflow-wrap: anywhere; }
 .hero-copy > .tagline { margin: 0 0 14px; color: hsl(var(--ff-text)); font-size: clamp(1.25rem, 2.3vw, 1.7rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.25; }
 .hero-copy > .hero-support { max-width: 520px; margin: 0; }
+.competition-promo,
+.results-competition-message {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid hsl(var(--border));
+  border-left: 3px solid hsl(var(--ff-yellow));
+  border-radius: 12px;
+  background: linear-gradient(110deg, hsl(var(--ff-surface) / .94), hsl(var(--ff-surface) / .62));
+  box-shadow: 4px 5px 0 rgba(7, 9, 13, .16);
+}
+.competition-promo { max-width: 560px; margin: 0 0 18px; padding: 13px 14px; }
+.results-competition-message { max-width: 560px; margin: 18px 0 26px; padding: 12px 14px; }
+.results-competition-message.is-top-ten {
+  border-color: hsl(var(--ff-yellow) / .4);
+  border-left-color: hsl(var(--ff-yellow));
+  background: linear-gradient(110deg, hsl(var(--ff-yellow) / .09), hsl(var(--ff-surface) / .72));
+}
+.competition-promo-mark { font-size: 1.15rem; line-height: 1.15; }
+.competition-promo-copy { min-width: 0; }
+.competition-promo-copy h2,
+.results-competition-message h2 {
+  margin: 0;
+  color: hsl(var(--ff-text));
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.3;
+}
+.competition-promo-copy p,
+.results-competition-message p {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: .78rem;
+  line-height: 1.45;
+}
 .fact-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
 .fact-row li { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; border: 1px solid hsl(var(--border)); border-radius: 999px; color: hsl(var(--muted-foreground)); font-size: .78rem; }
 .fact-row b { color: hsl(var(--ff-text)); font-family: var(--app-font-mono); font-size: .74rem; font-variant-numeric: tabular-nums; }
@@ -605,4 +642,10 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible, a:focus-vis
   .brand { font-size: 1rem; }
   .help-trigger span { font-size: .78rem; }
   .answer-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .competition-promo { gap: 8px; margin-bottom: 15px; padding: 11px 12px; }
+  .results-competition-message { gap: 8px; margin: 16px 0 20px; padding: 11px 12px; }
+  .competition-promo-copy h2, .results-competition-message h2 { font-size: .94rem; }
+  .competition-promo-copy p, .results-competition-message p { font-size: .73rem; }
 }
