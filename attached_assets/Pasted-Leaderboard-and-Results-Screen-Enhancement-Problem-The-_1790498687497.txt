@@ -1,0 +1,212 @@
+Leaderboard and Results Screen Enhancement
+
+Problem
+
+The leaderboard currently allows the same participant to occupy multiple ranks.
+
+Example:
+
+#1 Mubashshir 01 855
+#2 Mubashshir 01 759
+#3 Mubashshir 01 659
+#4 Mubashshir 01 616
+
+This is incorrect.
+
+The leaderboard must rank participants, not individual game sessions.
+
+====================================================
+LEADERBOARD FIX
+====================================================
+
+Requirements:
+
+1. A participant may occupy only ONE leaderboard position.
+
+2. Keep only the participant's BEST score for the active competition.
+
+3. If a participant plays again:
+
+   - Lower score:
+     Do not change the leaderboard entry.
+
+   - Higher score:
+     Update the existing leaderboard entry.
+
+4. Preserve existing tie-break order:
+
+   - Best streak
+   - Accuracy
+   - Lower average reaction time
+
+5. Verify:
+
+   - One participant cannot appear multiple times.
+   - Top 10 contains unique participants.
+   - Existing duplicate leaderboard rows are consolidated into the participant's best result.
+
+6. Fix the ROOT CAUSE.
+
+Investigate:
+
+   - leaderboard query
+   - leaderboard_entries table constraints
+   - participant identity logic
+   - score-submission flow
+
+Do not hide duplicates purely in the UI.
+Fix the underlying data or query logic.
+
+====================================================
+RESULTS SCREEN PERFORMANCE TITLES
+====================================================
+
+Add dynamic performance titles.
+
+Performance Title Rules:
+
+⚡ Speed Demon
+Award when:
+- Average reaction time is exceptionally fast
+
+🎯 Precision Master
+Award when:
+- Accuracy is exceptionally high
+
+🔄 Adaptability Ace
+Award when:
+- Strong performance during WORD COLOR rule changes
+- High task-switching success
+
+🔥 Streak Champion
+Award when:
+- Exceptional best streak compared with session performance
+
+🧠 Focus Specialist
+Award when:
+- Balanced overall performance
+- Good accuracy
+- Good reaction time
+- Good consistency
+
+🏆 Elite Performer
+Award when:
+- Leaderboard Top 10
+OR
+- Exceptional overall game performance
+
+====================================================
+TITLE DESCRIPTIONS
+====================================================
+
+Display the title and a short explanation under the main result header.
+
+Examples:
+
+⚡ SPEED DEMON
+
+Your reactions were exceptionally quick.
+You responded faster than most players.
+
+----------------------------------------------------
+
+🎯 PRECISION MASTER
+
+You maintained excellent accuracy throughout the challenge.
+
+----------------------------------------------------
+
+🔄 ADAPTABILITY ACE
+
+You adapted quickly whenever the rules changed and stayed focused.
+
+----------------------------------------------------
+
+🔥 STREAK CHAMPION
+
+You built and maintained an impressive streak under pressure.
+
+----------------------------------------------------
+
+🧠 FOCUS SPECIALIST
+
+You balanced speed, accuracy, and consistency extremely well.
+
+----------------------------------------------------
+
+🏆 ELITE PERFORMER
+
+Outstanding all-round performance.
+You've joined the top performers in Flash Focus.
+
+====================================================
+RANK PRESENTATION
+====================================================
+
+When leaderboard rank is available display:
+
+🏆 Rank #X
+
+Example:
+
+🏆 Rank #1
+
+855 Final Score
+
+🥇 Top 1% Performance
+
+or
+
+🏆 Rank #8
+
+724 Final Score
+
+🏆 Top 10 Performance
+
+Rank Tiers:
+
+Rank 1:
+🥇 Top 1% Performance
+
+Ranks 2–10:
+🏆 Top 10 Performance
+
+Ranks 11–50:
+⭐ Top 50 Performance
+
+Ranks 51–100:
+✅ Top 100 Performance
+
+Above 100:
+🎯 Keep climbing the leaderboard
+
+====================================================
+VERIFICATION
+====================================================
+
+After implementation provide:
+
+1. Root cause of duplicate leaderboard entries
+2. Files modified
+3. Database changes
+4. Query changes
+5. Verification that a participant can occupy only one rank
+6. Verification that higher scores replace lower scores
+7. Verification that lower scores never overwrite higher scores
+8. Verification that all performance titles display correctly
+
+====================================================
+DO NOT CHANGE
+====================================================
+
+Do not modify:
+
+- Shared Supabase leaderboard architecture
+- Session validation
+- Edge Functions
+- Score calculation formula
+- 70/30 rule system
+- Voice announcements
+- Existing streak system
+- Existing speed bonuses
+- Existing UI theme
