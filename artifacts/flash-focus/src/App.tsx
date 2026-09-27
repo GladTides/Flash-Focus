@@ -19,7 +19,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { GameDialog } from "@/components/game-dialog";
-import { PLAYER_NAME_MAX, PLAYER_NAME_MESSAGES, isSafeParticipantName, normalizePlayerName, playerNameProblem } from "./lib/player-name";
+import { PLAYER_NAME_MAX, PLAYER_NAME_MESSAGES, isSafeParticipantName, normalizeNicknameKey, normalizePlayerName, playerNameProblem } from "./lib/player-name";
 import { getRankAchievement, withDisplayRanks } from "./lib/leaderboard-rank";
 import { getPerformanceTitles } from "./lib/performance-titles";
 import { readBriefingSeen, writeBriefingSeen } from "./lib/onboarding-storage";
@@ -98,7 +98,7 @@ function safeReadBoard(): LeaderboardEntry[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed
+    const entries = parsed
       .filter((entry) => entry && typeof entry.name === "string" && isSafeParticipantName(entry.name) && typeof entry.score === "number")
       .map((entry) => ({
         name: String(entry.name).slice(0, 18),
@@ -108,11 +108,25 @@ function safeReadBoard(): LeaderboardEntry[] {
         bestStreak: Math.max(0, Math.round(Number(entry.bestStreak) || 0)),
         moments: Math.max(0, Math.round(Number(entry.moments) || 0)),
         date: typeof entry.date === "string" ? entry.date : new Date(0).toISOString(),
-      }))
-      .slice(0, 10);
+      }));
+    const bestByNickname = new Map<string, LeaderboardEntry>();
+    for (const entry of entries) {
+      const key = normalizeNicknameKey(entry.name);
+      const previous = bestByNickname.get(key);
+      if (!previous || compareLeaderboardPerformance(entry, previous) < 0) bestByNickname.set(key, entry);
+    }
+    return [...bestByNickname.values()].sort(compareLeaderboardPerformance).slice(0, 10);
   } catch {
     return [];
   }
+}
+
+function compareLeaderboardPerformance(a: LeaderboardEntry, b: LeaderboardEntry) {
+  return b.score - a.score
+    || b.bestStreak - a.bestStreak
+    || b.accuracy - a.accuracy
+    || a.avg - b.avg
+    || a.name.localeCompare(b.name);
 }
 
 function safeWriteBoard(entries: LeaderboardEntry[]) {
@@ -272,7 +286,7 @@ function Leaderboard({
   ];
   const rows = withDisplayRanks(compact ? entries.slice(0, 3) : entries);
   const titleId = compact ? "leaderboard-preview-title" : "leaderboard-title";
-  const highlight = highlightName?.trim().toLocaleLowerCase();
+  const highlight = highlightName ? normalizeNicknameKey(highlightName) : undefined;
   return (
     <section className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
       <div className="leaderboard-preview-header">
@@ -331,7 +345,7 @@ function Leaderboard({
           </thead>
           <tbody>
             {rows.map((entry, index) => {
-              const isPlayer = Boolean(highlight) && entry.name.trim().toLocaleLowerCase() === highlight;
+              const isPlayer = Boolean(highlight) && normalizeNicknameKey(entry.name) === highlight;
               return (
                 <tr
                   key={`${entry.name}-${entry.date}-${index}`}
@@ -1345,15 +1359,15 @@ function AppHome() {
       moments,
       date: new Date().toISOString(),
     };
-    const normalized = entry.name.toLocaleLowerCase();
-    const withoutPlayer = leaderboard.filter((item) => item.name.trim().toLocaleLowerCase() !== normalized);
-    const previous = leaderboard.find((item) => item.name.trim().toLocaleLowerCase() === normalized);
-    const candidate = !previous || score > previous.score ? entry : previous;
+    const normalized = normalizeNicknameKey(entry.name);
+    const withoutPlayer = leaderboard.filter((item) => normalizeNicknameKey(item.name) !== normalized);
+    const previous = leaderboard.find((item) => normalizeNicknameKey(item.name) === normalized);
+    const candidate = !previous || compareLeaderboardPerformance(entry, previous) < 0 ? entry : previous;
     const updated = [...withoutPlayer, candidate]
-      .sort((a, b) => b.score - a.score || b.accuracy - a.accuracy || b.bestStreak - a.bestStreak || b.moments - a.moments || a.date.localeCompare(b.date))
+      .sort(compareLeaderboardPerformance)
       .slice(0, 10);
     const ranked = withDisplayRanks(updated);
-    const mine = ranked.find((item) => item.name.trim().toLocaleLowerCase() === normalized);
+    const mine = ranked.find((item) => normalizeNicknameKey(item.name) === normalized);
     setLeaderboardPosition(mine ? mine.displayRank : null);
     setLeaderboard(updated);
     safeWriteBoard(updated);
@@ -1588,7 +1602,8 @@ function AppHome() {
   const deleteLeaderboardEntry = () => {
     if (!window.confirm("Remove your nickname and leaderboard entry from this competition?")) return;
     if (!competitionApiConfigured) {
-      const remainingEntries = leaderboard.filter((entry) => entry.name.trim().toLocaleLowerCase() !== name.trim().toLocaleLowerCase());
+      const normalized = normalizeNicknameKey(name);
+      const remainingEntries = leaderboard.filter((entry) => normalizeNicknameKey(entry.name) !== normalized);
       setLeaderboard(remainingEntries);
       safeWriteBoard(remainingEntries);
       setLeaderboardPosition(null);

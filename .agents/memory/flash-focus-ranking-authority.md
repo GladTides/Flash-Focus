@@ -3,10 +3,8 @@ name: Flash Focus ranking authority
 description: Shared leaderboard ranks and tie-break decisions are authoritative on the hosted competition function.
 ---
 
-The hosted Flash Focus competition function identifies a participant by Supabase user ID within a competition, retains the best performance, and orders scores by score, best streak, accuracy, then average reaction time. Its `myRank` response is the canonical shared rank.
+For Flash Focus, secure sessions remain tied to anonymous Supabase user IDs, but leaderboard identity is the normalized nickname within a competition. Matching nicknames intentionally merge, even across accounts.
 
-Repeated display nicknames under different anonymous user IDs are separate leaderboard participants under the current contract. Do not merge them by nickname without an explicit identity policy; different people can choose the same nickname.
+**Why:** The user chose a clean competition leaderboard with one visible position per normalized nickname, accepting that identical names merge across accounts. The hosted query must keep the winning performance and existing score, streak, accuracy, reaction-time tie-break order.
 
-**Why:** The hosted function is not part of the workspace source, and the app also has a local offline board. Computing a shared rank from local entries can show an incorrect placement.
-
-**How to apply:** In results UI, use `myRank` only after a successful leaderboard response. Keep local or offline rank explicitly labeled as device-only. Before changing participant uniqueness, establish whether nickname or a durable account ID defines one person.
+**How to apply:** Keep auth and session validation account-based, but resolve leaderboard rank and removal by normalized nickname. Use the hosted `myRank` response for shared rank; keep local/offline ranks labeled as device-only.

@@ -16,6 +16,10 @@ export function normalizePlayerName(value: string) {
   return value.normalize("NFKC").trim();
 }
 
+export function normalizeNicknameKey(value: string) {
+  return normalizePlayerName(value).replace(/\s+/gu, " ").toLocaleLowerCase("en-US");
+}
+
 export function playerNameProblem(value: string): PlayerNameProblem | null {
   const name = normalizePlayerName(value);
   if (!name) return "empty";
