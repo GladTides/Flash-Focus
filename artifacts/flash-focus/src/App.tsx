@@ -20,7 +20,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { GameDialog } from "@/components/game-dialog";
 import { PLAYER_NAME_MAX, PLAYER_NAME_MESSAGES, isSafeParticipantName, normalizePlayerName, playerNameProblem } from "./lib/player-name";
-import { withDisplayRanks } from "./lib/leaderboard-rank";
+import { getRankAchievement, withDisplayRanks } from "./lib/leaderboard-rank";
 import { readBriefingSeen, writeBriefingSeen } from "./lib/onboarding-storage";
 import {
   competitionApiConfigured,
@@ -818,7 +818,13 @@ function ResultsScreen({
     bestStreak >= 15 ? "FOCUS MACHINE" :
     accuracy >= 80 ? "CLEAR THINKER" :
     accuracy >= 60 ? "STEADY FOCUS" : "FOCUS EXPLORER";
-  const isTopTen = leaderboardStatus === "ready" && leaderboardPosition !== null && leaderboardPosition >= 1 && leaderboardPosition <= 10;
+  const hasVerifiedRank =
+    leaderboardStatus === "ready" &&
+    leaderboardPosition !== null &&
+    Number.isSafeInteger(leaderboardPosition) &&
+    leaderboardPosition >= 1;
+  const rankAchievement = hasVerifiedRank ? getRankAchievement(leaderboardPosition) : null;
+  const isTopTen = hasVerifiedRank && leaderboardPosition <= 10;
   return (
     <div className="screen-shell">
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
@@ -827,9 +833,21 @@ function ResultsScreen({
           <span className="eyebrow">session complete / {name}</span>
           <h1 className="display">{title}</h1>
           <p className="results-lede">Sixty seconds, done. No labels, no verdicts. Just how you read the signals when they crossed.</p>
+          {hasVerifiedRank && (
+            <div className="results-rank-banner" data-testid="text-result-rank-banner" aria-label={`Leaderboard rank ${leaderboardPosition}`}>
+              <span aria-hidden="true">🏆</span>
+              <strong>Rank #{leaderboardPosition}</strong>
+            </div>
+          )}
           <div className="score-hero"><span className="score-number" data-testid="text-final-score">{score.toLocaleString()}</span><span className="score-label">points<br />final score</span></div>
+          {rankAchievement && (
+            <div className={`rank-achievement is-${rankAchievement.tier}`} data-testid="text-rank-achievement">
+              <span aria-hidden="true">{rankAchievement.icon}</span>
+              <strong>{rankAchievement.label}</strong>
+            </div>
+          )}
           <div className="results-competition-slot" aria-live="polite" aria-atomic="true">
-            {leaderboardStatus !== "loading" && (
+            {hasVerifiedRank && (
               <section className={`results-competition-message${isTopTen ? " is-top-ten" : ""}`}>
                 <span className="competition-promo-mark" aria-hidden="true">{isTopTen ? "🏆" : "🎯"}</span>
                 <div className="competition-promo-copy">

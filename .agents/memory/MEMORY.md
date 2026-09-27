@@ -1,1 +1,2 @@
 - [Supabase runtime setup](supabase-runtime-setup.md) — hosted Auth provider toggles require the dashboard even when MCP schema and Edge Function deployment work.
+- [Flash Focus ranking authority](flash-focus-ranking-authority.md) — shared ranks and best-score tie-breaks come from the hosted competition function; keep local fallback ranks clearly separate.

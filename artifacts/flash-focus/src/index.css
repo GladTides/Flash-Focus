@@ -354,6 +354,45 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible, a:focus-vis
 .score-hero { display: flex; align-items: end; gap: 18px; margin: 30px 0; }
 .score-number { font-family: var(--app-font-mono); font-size: clamp(3rem, 7vw, 5.4rem); letter-spacing: -.09em; line-height: .8; color: hsl(var(--foreground)); }
 .score-label { color: hsl(var(--muted-foreground)); font-size: .76rem; text-transform: uppercase; letter-spacing: .12em; }
+.results-rank-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+  padding: 9px 14px;
+  border: 1px solid hsl(var(--ff-yellow) / .5);
+  border-radius: 999px;
+  background: linear-gradient(110deg, hsl(var(--ff-yellow) / .12), hsl(var(--ff-surface) / .8));
+  color: hsl(var(--ff-yellow));
+  box-shadow: 3px 4px 0 rgba(7, 9, 13, .16);
+}
+.results-rank-banner > span { font-size: 1.25rem; line-height: 1; }
+.results-rank-banner strong { font-family: var(--app-font-mono); font-size: .9rem; letter-spacing: .05em; }
+.results-rank-banner + .score-hero { margin-top: 17px; }
+.rank-achievement {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin: -13px 0 2px;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--ff-surface) / .7);
+  color: hsl(var(--ff-text));
+  font-family: var(--app-font-mono);
+  font-size: .67rem;
+  font-weight: 700;
+  letter-spacing: .035em;
+  line-height: 1.3;
+}
+.rank-achievement > span { flex: 0 0 auto; font-size: .95rem; }
+.rank-achievement strong { font-weight: 700; }
+.rank-achievement.is-first,
+.rank-achievement.is-top-ten { border-color: hsl(var(--ff-yellow) / .46); color: hsl(var(--ff-yellow)); }
+.rank-achievement.is-top-fifty { border-color: hsl(var(--ff-word) / .46); color: hsl(var(--ff-word)); }
+.rank-achievement.is-top-hundred { border-color: hsl(var(--ff-success) / .46); color: hsl(var(--ff-success)); }
+.rank-achievement.is-climbing { border-color: hsl(var(--ff-cyan) / .46); color: hsl(var(--ff-cyan)); }
 .results-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .result-explanation { max-width: 565px; margin-top: 28px; padding-top: 20px; border-top: 1px solid hsl(var(--border)); }
 .result-explanation h2 { margin: 0 0 10px; color: hsl(var(--accent)); font-family: var(--app-font-mono); font-size: .72rem; letter-spacing: .13em; }
