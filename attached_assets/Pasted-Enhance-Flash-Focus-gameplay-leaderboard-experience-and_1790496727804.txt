@@ -1,0 +1,210 @@
+Enhance Flash Focus gameplay, leaderboard experience, and results presentation.
+
+Goals
+
+1. Improve cognitive challenge by replacing the current Reverse Mode timer.
+2. Make gameplay more dynamic using a mixed-rule system.
+3. Improve user engagement with voice announcements.
+4. Strengthen leaderboard competitiveness.
+5. Improve results-screen presentation using rank-based achievements.
+
+=====================================
+GAMEPLAY RULE SYSTEM
+=====================================
+
+Remove the current Borderless Shift timer system.
+
+Replace it with a dynamic rule-selection system:
+
+- Approximately 70% of rounds:
+  Select the INK COLOR
+
+- Approximately 30% of rounds:
+  Select the WORD COLOR
+
+Requirements:
+
+- Randomize per round.
+- Maintain approximately 70/30 distribution throughout the game.
+- Never allow more than 4 consecutive rounds using the same rule.
+- Do not interrupt gameplay with large modal banners.
+- Keep gameplay continuous and fast-paced.
+
+=====================================
+RULE INDICATOR
+=====================================
+
+Display a prominent rule indicator above the challenge.
+
+INK COLOR mode:
+🔵 INK COLOR
+
+WORD COLOR mode:
+🟠 WORD COLOR
+
+Requirements:
+
+- High visibility.
+- Animated whenever the rule changes.
+- Distinct color styling for each mode.
+- Easy to recognize within one second.
+
+=====================================
+VOICE RULE ANNOUNCEMENTS
+=====================================
+
+Use SpeechSynthesis.
+
+Only announce when the rule changes.
+
+INK COLOR announcements:
+- "Ink color."
+- "Choose the ink color."
+- "Focus on the color."
+
+WORD COLOR announcements:
+- "Read the word."
+- "Word color."
+- "Focus on the word."
+
+Requirements:
+
+- Randomly rotate announcements.
+- Never repeat the same phrase twice in a row.
+- Keep announcements short.
+- Do not interrupt gameplay.
+- Continue functioning if SpeechSynthesis is unavailable.
+
+Add setting:
+
+Voice Announcements
+- ON
+- OFF
+
+Separate from:
+- Sound Effects
+- Coach Mode
+
+=====================================
+LEADERBOARD IMPROVEMENTS
+=====================================
+
+Prevent duplicate leaderboard entries from the same participant.
+
+Requirements:
+
+- One participant may occupy only one leaderboard position.
+- Keep only the participant's highest score.
+- Lower scores should never replace higher scores.
+- Higher scores should overwrite the participant's existing record.
+- Preserve all tie-break logic:
+  - Best streak
+  - Accuracy
+  - Reaction time
+
+=====================================
+START SCREEN PROMOTION
+=====================================
+
+Below the Flash Focus title and above the nickname input field display:
+
+🎯 Can you make the Top 10?
+
+Challenge your attention, reaction speed and focus.
+
+Play Flash Focus and see where you rank on the leaderboard.
+
+Use existing Flash Focus styling and branding.
+
+Keep responsive for mobile and desktop.
+
+=====================================
+RESULTS SCREEN ENHANCEMENTS
+=====================================
+
+When leaderboard rank is available:
+
+Display:
+
+🏆 Rank #X
+
+where X is the actual leaderboard rank.
+
+Examples:
+
+🏆 Rank #1
+🏆 Rank #7
+🏆 Rank #25
+
+Display final score underneath:
+
+759 Final Score
+
+Add a performance badge beneath score:
+
+Rules:
+
+Rank 1:
+🥇 Top 1% Performance
+
+Ranks 2–10:
+🏆 Top 10 Performance
+
+Ranks 11–50:
+⭐ Top 50 Performance
+
+Ranks 51–100:
+✅ Top 100 Performance
+
+Above 100:
+🎯 Keep climbing the leaderboard
+
+=====================================
+RESULTS MESSAGES
+=====================================
+
+If rank is between 1 and 10:
+
+🏆 Congratulations! You're in the Top 10.
+
+If rank is above 10:
+
+🎯 Can you make the Top 10?
+
+Play again and climb the leaderboard.
+
+Wait until leaderboard rank finishes loading before displaying these messages.
+
+=====================================
+PRESERVE EXISTING FEATURES
+=====================================
+
+Do not modify:
+
+- Shared Supabase leaderboard
+- Session validation
+- Edge Functions
+- Score calculations
+- Streak bonuses
+- Speed bonuses
+- Voice feedback
+- Coach Mode
+- Statistics panel
+- Sound effects
+- Fullscreen support
+- Practice mode
+- Accessibility behavior
+- Mobile responsiveness
+
+=====================================
+EXPECTED OUTCOME
+=====================================
+
+The game should feel more dynamic, competitive, and replayable.
+
+Players should:
+- Frequently switch attention between word and color tasks.
+- Understand the active rule instantly.
+- Compete for leaderboard position.
+- See a clear rank, achievement, and performance level after each game.
+- Be motivated to replay in order to reach the Top 10.
