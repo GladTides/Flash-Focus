@@ -29,6 +29,38 @@ type LeaderboardRow = {
   verified: boolean;
 };
 
+type RequestContext = {
+  requestId: string;
+  action: string;
+};
+
+function logFailure(context: RequestContext, phase: string, error: unknown, details: Record<string, unknown> = {}) {
+  const errorFields = error instanceof Error
+    ? { errorName: error.name, errorMessage: error.message, stack: error.stack }
+    : { errorName: "UnknownError", errorMessage: String(error) };
+  console.error(JSON.stringify({
+    event: "flash_focus.failure",
+    severity: "error",
+    requestId: context.requestId,
+    action: context.action,
+    phase,
+    ...details,
+    ...errorFields,
+  }));
+}
+
+function logValidationFailure(context: RequestContext, reason: string, details: Record<string, unknown> = {}) {
+  console.warn(JSON.stringify({
+    event: "flash_focus.validation_failure",
+    severity: "warning",
+    requestId: context.requestId,
+    action: context.action,
+    phase: "score_validation",
+    reason,
+    ...details,
+  }));
+}
+
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -45,33 +77,89 @@ function errorResponse(message: string, status = 400) {
   return response({ error: message }, status);
 }
 
-async function supabaseFetch(path: string, init: RequestInit = {}) {
+async function supabaseFetch(path: string, init: RequestInit, context: RequestContext, phase: string) {
   const headers = new Headers(init.headers);
   headers.set("apikey", SERVICE_ROLE_KEY);
   headers.set("Authorization", `Bearer ${SERVICE_ROLE_KEY}`);
   headers.set("Content-Type", "application/json");
-  const result = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...init, headers });
+  const method = (init.method ?? "GET").toUpperCase();
+  const resource = path.split("?")[0];
+  let result: Response;
+  try {
+    result = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...init, headers });
+  } catch (error) {
+    logFailure(context, phase, error, { operation: "postgrest", method, resource });
+    throw new Error("Database request failed.");
+  }
   const text = await result.text();
   let body: unknown = null;
   try {
     body = text ? JSON.parse(text) : null;
-  } catch {
+  } catch (error) {
+    logFailure(context, `${phase}_response_json_parse`, error, {
+      operation: "postgrest",
+      method,
+      resource,
+      status: result.status,
+    });
     body = text;
   }
-  if (!result.ok) throw new Error(typeof body === "object" && body && "message" in body ? String(body.message) : "Database request failed");
+  if (!result.ok) {
+    const errorBody = typeof body === "object" && body !== null ? body as Record<string, unknown> : null;
+    logFailure(
+      context,
+      phase,
+      new Error(typeof errorBody?.message === "string" ? errorBody.message : `PostgREST returned HTTP ${result.status}.`),
+      {
+        operation: "postgrest",
+        method,
+        resource,
+        status: result.status,
+        statusText: result.statusText,
+        databaseCode: typeof errorBody?.code === "string" ? errorBody.code : undefined,
+      },
+    );
+    throw new Error("Database request failed.");
+  }
   return body;
 }
 
-async function getUserId(request: Request) {
+async function getUserId(request: Request, context: RequestContext) {
   const authorization = request.headers.get("Authorization");
-  if (!authorization?.startsWith("Bearer ")) throw new Error("Authentication required");
-  const result = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: SERVICE_ROLE_KEY, Authorization: authorization },
-  });
-  if (!result.ok) throw new Error("Authentication required");
-  const user = await result.json();
-  if (typeof user?.id !== "string") throw new Error("Authentication required");
-  return user.id as string;
+  if (!authorization?.startsWith("Bearer ")) {
+    logFailure(context, "authentication", new Error("Missing bearer token."), { reason: "missing_bearer_token" });
+    throw new Error("Authentication required.");
+  }
+  let result: Response;
+  try {
+    result = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SERVICE_ROLE_KEY, Authorization: authorization },
+    });
+  } catch (error) {
+    logFailure(context, "authentication", error, { reason: "auth_request_failed" });
+    throw new Error("Authentication required.");
+  }
+  if (!result.ok) {
+    logFailure(context, "authentication", new Error("Auth endpoint rejected the bearer token."), {
+      reason: "auth_endpoint_non_success",
+      status: result.status,
+    });
+    throw new Error("Authentication required.");
+  }
+  let user: unknown;
+  try {
+    user = await result.json();
+  } catch (error) {
+    logFailure(context, "authentication_response_json_parse", error, { status: result.status });
+    throw new Error("Authentication required.");
+  }
+  if (!user || typeof user !== "object" || typeof (user as { id?: unknown }).id !== "string") {
+    logFailure(context, "authentication", new Error("Auth endpoint response did not contain a user ID."), {
+      reason: "invalid_auth_response",
+    });
+    throw new Error("Authentication required.");
+  }
+  return (user as { id: string }).id;
 }
 
 function checkRateLimit(key: string, max: number, windowMs: number) {
@@ -96,8 +184,13 @@ function validateNickname(value: unknown) {
   return nickname;
 }
 
-async function getCompetition() {
-  const rows = await supabaseFetch(`competitions?slug=eq.${encodeURIComponent(COMPETITION_SLUG)}&is_open=eq.true&select=id,slug,name&limit=1`) as Array<{ id: string; slug: string; name: string }>;
+async function getCompetition(context: RequestContext) {
+  const rows = await supabaseFetch(
+    `competitions?slug=eq.${encodeURIComponent(COMPETITION_SLUG)}&is_open=eq.true&select=id,slug,name&limit=1`,
+    {},
+    context,
+    "competition_lookup",
+  ) as Array<{ id: string; slug: string; name: string }>;
   return rows[0] ?? null;
 }
 
@@ -130,25 +223,40 @@ function publicEntry(row: LeaderboardRow, rank: number) {
   return { rank, nickname: row.nickname, score: row.best_score, bestStreak: row.best_streak };
 }
 
-async function startSession(userId: string, body: Record<string, unknown>) {
+async function startSession(userId: string, body: Record<string, unknown>, context: RequestContext) {
   const nickname = validateNickname(body.nickname);
   if (!nickname) return errorResponse("Use a nickname or first name only, up to 18 characters.", 422);
-  const competition = await getCompetition();
+  const competition = await getCompetition(context);
   if (!competition) return errorResponse("This competition is currently closed.", 409);
   if (!checkRateLimit(`start:${userId}`, 10, 10 * 60_000)) return errorResponse("Too many sessions started. Please try again later.", 429);
 
-  await supabaseFetch("participant_profiles?on_conflict=user_id", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ user_id: userId, nickname, updated_at: new Date().toISOString() }),
-  });
-  const sessions = await supabaseFetch("game_sessions", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ user_id: userId, competition_id: competition.id }),
-  }) as Array<{ id: string; started_at: string }>;
+  await supabaseFetch(
+    "participant_profiles?on_conflict=user_id",
+    {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({ user_id: userId, nickname, updated_at: new Date().toISOString() }),
+    },
+    context,
+    "participant_profile_upsert",
+  );
+  const sessions = await supabaseFetch(
+    "game_sessions",
+    {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ user_id: userId, competition_id: competition.id }),
+    },
+    context,
+    "session_creation",
+  ) as Array<{ id: string; started_at: string }>;
   const session = sessions[0];
-  if (!session) return errorResponse("Could not start a secure game session.", 503);
+  if (!session) {
+    logFailure(context, "session_creation", new Error("Database insert returned no session row."), {
+      reason: "empty_insert_result",
+    });
+    return errorResponse("Could not start a secure game session.", 503);
+  }
   return response({ sessionId: session.id, serverStartedAt: session.started_at, competition: competition.slug });
 }
 
@@ -200,55 +308,106 @@ function calculateScore(rounds: RoundAttempt[]) {
   return { score, bestStreak, correct, average, accuracy: Math.round((correct / rounds.length) * 100), suspicious };
 }
 
-async function submitScore(userId: string, body: Record<string, unknown>) {
+async function submitScore(userId: string, body: Record<string, unknown>, context: RequestContext) {
   const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
   const rounds = parseRounds(body.rounds);
   const submittedScore = typeof body.score === "number" ? body.score : -1;
-  if (!sessionId || !rounds || !Number.isInteger(submittedScore)) return errorResponse("Malformed score submission.", 422);
+  if (!sessionId || !rounds || !Number.isInteger(submittedScore)) {
+    logValidationFailure(context, "malformed_submission");
+    return errorResponse("Malformed score submission.", 422);
+  }
   if (!checkRateLimit(`submit:${userId}`, 5, 10 * 60_000)) return errorResponse("Too many score submissions. Please try again later.", 429);
-  const sessions = await supabaseFetch(`game_sessions?id=eq.${encodeURIComponent(sessionId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,competition_id,started_at,status,submitted_at&limit=1`) as Array<{ id: string; competition_id: string; started_at: string; status: string; submitted_at: string | null }>;
+  const sessions = await supabaseFetch(
+    `game_sessions?id=eq.${encodeURIComponent(sessionId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,competition_id,started_at,status,submitted_at&limit=1`,
+    {},
+    context,
+    "session_lookup",
+  ) as Array<{ id: string; competition_id: string; started_at: string; status: string; submitted_at: string | null }>;
   const session = sessions[0];
-  if (!session || session.status !== "pending" || session.submitted_at) return errorResponse("This game session is invalid or was already submitted.", 409);
+  if (!session || session.status !== "pending" || session.submitted_at) {
+    logValidationFailure(context, "session_not_pending");
+    return errorResponse("This game session is invalid or was already submitted.", 409);
+  }
   const durationMs = Date.now() - new Date(session.started_at).getTime();
-  if (!Number.isFinite(durationMs) || durationMs < 45_000 || durationMs > 180_000) return errorResponse("This game session duration could not be verified.", 422);
+  if (!Number.isFinite(durationMs) || durationMs < 45_000 || durationMs > 180_000) {
+    logValidationFailure(context, "invalid_session_duration", { durationMs });
+    return errorResponse("This game session duration could not be verified.", 422);
+  }
   const result = calculateScore(rounds);
-  if (result.score !== submittedScore) return errorResponse("The submitted score did not match the recorded answers.", 422);
+  if (result.score !== submittedScore) {
+    logValidationFailure(context, "score_mismatch", {
+      calculatedScore: result.score,
+      submittedScore,
+      roundCount: rounds.length,
+    });
+    return errorResponse("The submitted score did not match the recorded answers.", 422);
+  }
   const exceptional = result.suspicious || rounds.length > 100 || durationMs < 52_000 || durationMs > 90_000 || result.score > 3_000;
   const verified = !exceptional;
   const now = new Date().toISOString();
-  await supabaseFetch(`game_sessions?id=eq.${encodeURIComponent(session.id)}&user_id=eq.${encodeURIComponent(userId)}`, {
-    method: "PATCH",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({ submitted_at: now, duration_ms: durationMs, status: "submitted", score: result.score, best_streak: result.bestStreak, accuracy: result.accuracy, average_reaction_ms: result.average, verified }),
-  });
-  const existingRows = await supabaseFetch(`leaderboard_entries?user_id=eq.${encodeURIComponent(userId)}&competition_id=eq.${encodeURIComponent(session.competition_id)}&select=*`) as LeaderboardRow[];
+  await supabaseFetch(
+    `game_sessions?id=eq.${encodeURIComponent(session.id)}&user_id=eq.${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ submitted_at: now, duration_ms: durationMs, status: "submitted", score: result.score, best_streak: result.bestStreak, accuracy: result.accuracy, average_reaction_ms: result.average, verified }),
+    },
+    context,
+    "session_finalize",
+  );
+  const existingRows = await supabaseFetch(
+    `leaderboard_entries?user_id=eq.${encodeURIComponent(userId)}&competition_id=eq.${encodeURIComponent(session.competition_id)}&select=*`,
+    {},
+    context,
+    "leaderboard_lookup",
+  ) as LeaderboardRow[];
   const existing = existingRows[0];
-  const profileRows = await supabaseFetch(`participant_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname&limit=1`) as Array<{ nickname: string }>;
+  const profileRows = await supabaseFetch(
+    `participant_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname&limit=1`,
+    {},
+    context,
+    "participant_profile_lookup",
+  ) as Array<{ nickname: string }>;
   const nickname = profileRows[0]?.nickname ?? "Player";
   const candidate = { score: result.score, streak: result.bestStreak, accuracy: result.accuracy, average: result.average };
   if (!existing) {
-    await supabaseFetch("leaderboard_entries", {
-      method: "POST",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ user_id: userId, competition_id: session.competition_id, nickname, best_score: result.score, best_streak: result.bestStreak, best_accuracy: result.accuracy, best_average_reaction_ms: result.average, games_played: 1, verified }),
-    });
+    await supabaseFetch(
+      "leaderboard_entries",
+      {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ user_id: userId, competition_id: session.competition_id, nickname, best_score: result.score, best_streak: result.bestStreak, best_accuracy: result.accuracy, best_average_reaction_ms: result.average, games_played: 1, verified }),
+      },
+      context,
+      "leaderboard_insert",
+    );
   } else {
     const update = isBetter(candidate, existing) ? { nickname, best_score: result.score, best_streak: result.bestStreak, best_accuracy: result.accuracy, best_average_reaction_ms: result.average, verified: existing.verified && verified } : { verified: existing.verified && verified };
-    await supabaseFetch(`leaderboard_entries?user_id=eq.${encodeURIComponent(userId)}&competition_id=eq.${encodeURIComponent(session.competition_id)}`, {
-      method: "PATCH",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ ...update, games_played: existing.games_played + 1, updated_at: now }),
-    });
+    await supabaseFetch(
+      `leaderboard_entries?user_id=eq.${encodeURIComponent(userId)}&competition_id=eq.${encodeURIComponent(session.competition_id)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ ...update, games_played: existing.games_played + 1, updated_at: now }),
+      },
+      context,
+      "leaderboard_update",
+    );
   }
   return response({ ok: true, score: result.score, verified });
 }
 
-async function leaderboard(userId: string, body: Record<string, unknown>) {
+async function leaderboard(userId: string, body: Record<string, unknown>, context: RequestContext) {
   const scope = typeof body.scope === "string" && ALLOWED_SCOPES.has(body.scope) ? body.scope : "top10";
-  const competition = await getCompetition();
+  const competition = await getCompetition(context);
   if (!competition) return response({ entries: [], myRank: null, scope });
   const weekFilter = scope === "thisWeek" ? `&updated_at=gte.${encodeURIComponent(new Date(Date.now() - 7 * 86_400_000).toISOString())}` : "";
-  const rows = await supabaseFetch(`leaderboard_entries?competition_id=eq.${encodeURIComponent(competition.id)}${weekFilter}&select=user_id,nickname,best_score,best_streak,best_accuracy,best_average_reaction_ms,verified&order=best_score.desc,best_streak.desc,best_accuracy.desc,best_average_reaction_ms.asc`) as LeaderboardRow[];
+  const rows = await supabaseFetch(
+    `leaderboard_entries?competition_id=eq.${encodeURIComponent(competition.id)}${weekFilter}&select=user_id,nickname,best_score,best_streak,best_accuracy,best_average_reaction_ms,verified&order=best_score.desc,best_streak.desc,best_accuracy.desc,best_average_reaction_ms.asc`,
+    {},
+    context,
+    "leaderboard_read",
+  ) as LeaderboardRow[];
   const sorted = sortedRows(rows);
   const myRankIndex = sorted.findIndex((row) => row.user_id === userId);
   const limit = scope === "top100" || scope === "allTime" || scope === "thisWeek" ? 100 : 10;
@@ -256,29 +415,62 @@ async function leaderboard(userId: string, body: Record<string, unknown>) {
   return response({ entries, myRank: myRankIndex >= 0 ? myRankIndex + 1 : null, scope });
 }
 
-async function deleteEntry(userId: string) {
-  const competition = await getCompetition();
+async function deleteEntry(userId: string, context: RequestContext) {
+  const competition = await getCompetition(context);
   if (!competition) return response({ ok: true });
-  await supabaseFetch(`leaderboard_entries?user_id=eq.${encodeURIComponent(userId)}&competition_id=eq.${encodeURIComponent(competition.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
-  await supabaseFetch(`participant_profiles?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  await supabaseFetch(
+    `leaderboard_entries?user_id=eq.${encodeURIComponent(userId)}&competition_id=eq.${encodeURIComponent(competition.id)}`,
+    { method: "DELETE", headers: { Prefer: "return=minimal" } },
+    context,
+    "leaderboard_delete",
+  );
+  await supabaseFetch(
+    `participant_profiles?user_id=eq.${encodeURIComponent(userId)}`,
+    { method: "DELETE", headers: { Prefer: "return=minimal" } },
+    context,
+    "participant_profile_delete",
+  );
   return response({ ok: true });
 }
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return response({ ok: true });
   if (request.method !== "POST") return errorResponse("Method not allowed.", 405);
+  const context: RequestContext = { requestId: crypto.randomUUID(), action: "unparsed" };
   try {
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return errorResponse("Supabase function is not configured.", 503);
-    const userId = await getUserId(request);
-    const body = await request.json() as Record<string, unknown>;
+    const missingEnvironment = [
+      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
+      ...(!SERVICE_ROLE_KEY ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
+    ];
+    if (missingEnvironment.length) {
+      logFailure(context, "configuration", new Error("Required environment variable is missing."), {
+        missingEnvironment,
+      });
+      return errorResponse("Service temporarily unavailable.", 503);
+    }
+    const userId = await getUserId(request, context);
+    let parsedBody: unknown;
+    try {
+      parsedBody = await request.json();
+    } catch (error) {
+      logFailure(context, "request_json_parse", error);
+      return errorResponse("Invalid request body.", 400);
+    }
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+      logFailure(context, "request_json_validation", new Error("Request body must be a JSON object."));
+      return errorResponse("Invalid request body.", 400);
+    }
+    const body = parsedBody as Record<string, unknown>;
+    context.action = typeof body.action === "string" ? body.action : "unknown";
     switch (body.action) {
-      case "start-session": return await startSession(userId, body);
-      case "submit-score": return await submitScore(userId, body);
-      case "leaderboard": return await leaderboard(userId, body);
-      case "delete-entry": return await deleteEntry(userId);
+      case "start-session": return await startSession(userId, body, context);
+      case "submit-score": return await submitScore(userId, body, context);
+      case "leaderboard": return await leaderboard(userId, body, context);
+      case "delete-entry": return await deleteEntry(userId, context);
       default: return errorResponse("Unknown action.", 400);
     }
   } catch (error) {
-    return errorResponse(error instanceof Error ? error.message : "Unexpected server error.", 500);
+    logFailure(context, "request_handler", error);
+    return errorResponse("Service temporarily unavailable.", 500);
   }
 });
