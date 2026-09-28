@@ -22,7 +22,6 @@ import { GameDialog } from "@/components/game-dialog";
 import { PLAYER_NAME_MAX, PLAYER_NAME_MESSAGES, isSafeParticipantName, normalizeNicknameKey, normalizePlayerName, playerNameProblem } from "./lib/player-name";
 import { getRankAchievement, withDisplayRanks } from "./lib/leaderboard-rank";
 import { getPerformanceTitles } from "./lib/performance-titles";
-import { readBriefingSeen, writeBriefingSeen } from "./lib/onboarding-storage";
 import {
   competitionApiConfigured,
   deleteSharedLeaderboardEntry,
@@ -58,11 +57,7 @@ const NAME_KEY = "flash-focus-player-name";
 const SOUND_KEY = "flash-focus-sound";
 const VOICE_ANNOUNCEMENTS_KEY = "flash-focus-voice-announcements";
 const COACH_MODE_KEY = "flash-focus-coach-mode";
-const APP_DISCLAIMER = "For learning and fun only. Scores do not measure intelligence or job performance.";
-const APP_CONFIG = {
-  competitionSlug: "flash-focus-2026",
-  organizationName: "Al-Futtaim",
-};
+const APP_DISCLAIMER = "Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.";
 const FRIENDLY_FEEDBACK = [
   { text: "Classic Stroop trap!", voice: "Classic Stroop moment." },
   { text: "The word won that round.", voice: "The word fooled you." },
@@ -252,7 +247,7 @@ const LEADERBOARD_COPY = {
   error: "The leaderboard couldn’t load right now.",
   offlineEmpty: "The shared leaderboard is unavailable, and no scores are saved on this device yet.",
   offlineCached: "The shared leaderboard is unavailable. Showing scores saved on this device only. These are not added to the shared leaderboard later.",
-  empty: "No scores yet. The first run sets the bar.",
+  empty: "No scores yet. Set the first benchmark.",
   submitFailed: "Your score couldn’t be shared. It is saved on this device only.",
   sessionUnavailable: "The shared leaderboard is unavailable for this run. Your score is saved on this device only.",
   removeFailed: "Your entry couldn’t be removed right now. Please try again.",
@@ -261,6 +256,7 @@ const LEADERBOARD_COPY = {
 function Leaderboard({
   entries,
   compact = false,
+  onCompactToggle,
   status = "ready",
   error,
   scope = "top10",
@@ -270,6 +266,7 @@ function Leaderboard({
 }: {
   entries: LeaderboardEntry[];
   compact?: boolean;
+  onCompactToggle?: () => void;
   status?: LeaderboardStatus;
   error?: string;
   scope?: LeaderboardScope;
@@ -288,13 +285,27 @@ function Leaderboard({
   const titleId = compact ? "leaderboard-preview-title" : "leaderboard-title";
   const highlight = highlightName ? normalizeNicknameKey(highlightName) : undefined;
   return (
-    <section className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
+    <section id={compact ? "leaderboard-preview" : "leaderboard-full"} className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
       <div className="leaderboard-preview-header">
         <div>
-          <h2 id={titleId}>Borderless Focus Leaderboard</h2>
-          <p className="micro-copy">Who has the sharpest focus at {APP_CONFIG.organizationName}?</p>
+          <h2 id={titleId}>BORDERLESS FOCUS LEADERBOARD</h2>
+          <p className="micro-copy">Top performances from this challenge.</p>
         </div>
-        {!compact && <Trophy size={17} color="hsl(var(--accent))" aria-hidden="true" />}
+        <div className="leaderboard-header-actions">
+          {onCompactToggle && (
+            <button
+              className="quiet-button leaderboard-expand"
+              type="button"
+              onClick={onCompactToggle}
+              aria-expanded={!compact}
+              aria-controls={compact ? "leaderboard-preview" : "leaderboard-full"}
+              data-testid={compact ? "button-view-top-10" : "button-show-top-3"}
+            >
+              {compact ? "View Top 10" : "Show Top 3"}
+            </button>
+          )}
+          {!compact && <Trophy size={17} color="hsl(var(--accent))" aria-hidden="true" />}
+        </div>
       </div>
       {!compact && onScopeChange && (
         <div className="leaderboard-tabs" role="group" aria-label="Leaderboard view">
@@ -378,8 +389,6 @@ function Leaderboard({
   );
 }
 
-type BriefingMode = "help" | "game" | "practice";
-
 function SettingSwitch({ id, label, detail, enabled, onToggle }: { id: string; label: string; detail: string; enabled: boolean; onToggle: () => void }) {
   return (
     <div className="setting-row">
@@ -406,10 +415,8 @@ function SettingSwitch({ id, label, detail, enabled, onToggle }: { id: string; l
 }
 
 function HelpModal({
-  mode,
   inGame,
   onClose,
-  onConfirm,
   soundOn,
   voiceAnnouncementsOn,
   coachModeOn,
@@ -417,10 +424,8 @@ function HelpModal({
   onVoiceAnnouncements,
   onCoachMode,
 }: {
-  mode: BriefingMode;
   inGame: boolean;
   onClose: () => void;
-  onConfirm: (skipNextTime: boolean) => void;
   soundOn: boolean;
   voiceAnnouncementsOn: boolean;
   coachModeOn: boolean;
@@ -428,68 +433,48 @@ function HelpModal({
   onVoiceAnnouncements: () => void;
   onCoachMode: () => void;
 }) {
-  const [skipNextTime, setSkipNextTime] = useState(true);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const confirmLabel = mode === "practice" ? "Start practice round" : mode === "game" ? "Got it · Let’s go" : "Got it · Close";
-  const confirmResult =
-    mode === "practice" ? "Starts a 5-second practice round. It does not count toward the leaderboard." :
-    mode === "game" ? "Starts your 60-second challenge after a 3-second countdown." :
-    inGame ? "Closes the briefing. Your game stays paused until you resume." :
-    "Closes the briefing. Nothing starts until you select Start Game.";
   return (
-    <GameDialog labelledBy="help-title" describedBy="help-lede" onEscape={onClose} initialFocusRef={mode === "help" ? undefined : confirmRef} testId="dialog-help">
+    <GameDialog labelledBy="help-title" describedBy="help-lede" onEscape={onClose} testId="dialog-help">
       <div className="modal-head">
         <div>
-          <span className="eyebrow">{mode === "practice" ? "practice round" : "how to play"}</span>
-          <h2 id="help-title">{mode === "practice" ? "5-second warm-up" : "Quick briefing"}</h2>
+          <span className="eyebrow">quick guide</span>
+          <h2 id="help-title">How to Play</h2>
         </div>
-        <button className="icon-button" type="button" onClick={onClose} aria-label={mode === "help" ? "Close briefing" : "Cancel and close briefing"} data-testid="button-close-help"><X size={17} aria-hidden="true" /></button>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="Close How to Play" data-testid="button-close-help"><X size={17} aria-hidden="true" /></button>
       </div>
-      <p className="briefing-lede" id="help-lede">Stay sharp. The active rule can change after any round.</p>
+      <p className="help-lede" id="help-lede">Follow the active rule. A Borderless Shift can change it between rounds.</p>
       <div className="rule-compare" role="list" aria-label="The two rules">
         <div className="rule-chip is-ink" role="listitem">
           <strong>INK COLOR</strong>
-          <span>Choose the color you see.</span>
+          <span>Choose the color of the letters.</span>
         </div>
         <div className="rule-chip is-word" role="listitem">
           <strong>WORD COLOR</strong>
-          <span>Choose the color the word names.</span>
+          <span>Choose the color named by the word.</span>
         </div>
       </div>
-      {mode === "practice" ? (
-        <p className="practice-brief">Click a color or press its number key. Practice lasts 5 seconds and is never scored or saved.</p>
-      ) : (
-        <ul className="help-list">
-          <li><span className="keycap">1–6</span><span><strong>Choose</strong><small>Click a color or press its number, 1–6.</small></span></li>
-          <li><span className="keycap">Switch</span><span><strong>Stay ready</strong><small>The active rule can change after any round.</small></span></li>
-          <li><span className="keycap">+50</span><span><strong>Bonus</strong><small>Build a streak of 5 or more, then answer a WORD COLOR round correctly to earn a Borderless Moment.</small></span></li>
-          <li><span className="keycap">P</span><span><strong>Pause</strong><small>Press P to pause or resume.</small></span></li>
-          <li><span className="keycap">60s</span><span><strong>Go</strong><small>Score as many points as possible in 60 seconds.</small></span></li>
-        </ul>
-      )}
-      {mode !== "practice" && (
-        <section className="settings-panel" aria-labelledby="settings-title">
-          <span className="eyebrow">settings</span>
-          <h3 id="settings-title">Audio &amp; guidance</h3>
-          <div className="settings-list">
-            <SettingSwitch id="setting-sound" label="Sound effects" detail="Answer sounds and rule-change cues" enabled={soundOn} onToggle={onSound} />
-            <SettingSwitch id="setting-voice" label="Voice announcements" detail="Speaks only when the rule changes; the on-screen cue always shows" enabled={voiceAnnouncementsOn} onToggle={onVoiceAnnouncements} />
-            <SettingSwitch id="setting-coach" label="Coach mode" detail="Occasional spoken feedback on your answers" enabled={coachModeOn} onToggle={onCoachMode} />
-          </div>
-          <p className="settings-note">Saved on this device when your browser allows it. Speech depends on browser support.</p>
-        </section>
-      )}
-      <div className="modal-actions modal-actions-stacked">
-        {mode === "game" && (
-          <label className="skip-check">
-            <input type="checkbox" checked={skipNextTime} onChange={(event) => setSkipNextTime(event.target.checked)} data-testid="checkbox-skip-briefing" />
-            <span>Skip this briefing next time. It stays under How to play.</span>
-          </label>
-        )}
-        <button ref={confirmRef} className="primary-button" type="button" onClick={() => onConfirm(skipNextTime)} aria-describedby="help-cta-result" data-testid="button-got-it">
-          {confirmLabel} <ArrowRight size={16} aria-hidden="true" className="button-icon-end" />
-        </button>
-        <p className="cta-result" id="help-cta-result">{confirmResult}</p>
+      <ul className="help-list">
+        <li><span className="keycap">1–6</span><span><strong>Choose</strong><small>Tap a color or press its number.</small></span></li>
+        <li><span className="keycap">Shift</span><span><strong>Watch the cue</strong><small>The rule can change between rounds.</small></span></li>
+        <li><span className="keycap">60s</span><span><strong>Play</strong><small>Score as many points as you can in one minute.</small></span></li>
+        <li><span className="keycap">P</span><span><strong>Pause</strong><small>Press P to pause or resume.</small></span></li>
+        <li><span className="keycap">+50</span><span><strong>Borderless Moment</strong><small>Build a streak of 5 or more, then answer a WORD COLOR round correctly.</small></span></li>
+      </ul>
+      <p className="help-explanation">Flash Focus is inspired by the Stroop effect, where reading a word can interfere with identifying its ink color.</p>
+      <p className="page-disclaimer help-disclaimer">{APP_DISCLAIMER}</p>
+      {inGame && <p className="micro-copy help-pause-note">Your game stays paused until you resume.</p>}
+      <section className="settings-panel" aria-labelledby="settings-title">
+        <span className="eyebrow">settings</span>
+        <h3 id="settings-title">Audio &amp; guidance</h3>
+        <div className="settings-list">
+          <SettingSwitch id="setting-sound" label="Sound effects" detail="Answer sounds and rule-change cues" enabled={soundOn} onToggle={onSound} />
+          <SettingSwitch id="setting-voice" label="Voice announcements" detail="Speaks only when the rule changes; the on-screen cue always shows" enabled={voiceAnnouncementsOn} onToggle={onVoiceAnnouncements} />
+          <SettingSwitch id="setting-coach" label="Coach mode" detail="Occasional spoken feedback on your answers" enabled={coachModeOn} onToggle={onCoachMode} />
+        </div>
+        <p className="settings-note">Saved on this device when your browser allows it. Speech depends on browser support.</p>
+      </section>
+      <div className="modal-actions">
+        <button className="primary-button" type="button" onClick={onClose} data-testid="button-got-it">Got it</button>
       </div>
     </GameDialog>
   );
@@ -548,6 +533,7 @@ function HomeScreen({
   leaderboardError: string;
   onLeaderboardRetry: () => void;
 }) {
+  const [leaderboardExpanded, setLeaderboardExpanded] = useState(false);
   const count = normalizePlayerName(name).length;
   return (
     <div className="screen-shell home-shell">
@@ -565,17 +551,17 @@ function HomeScreen({
             </div>
             <div className="rule-grid">
               <article className="rule-card is-ink" data-testid="landing-rule-ink">
-                <span className="rule-card-index">01 / NORMAL</span>
+              <span className="rule-card-index">Normal round</span>
                 <h3>Choose the <strong>INK COLOR</strong></h3>
                 <p>Ignore the word. Select the color of its letters.</p>
               </article>
               <article className="rule-card is-word" data-testid="landing-rule-word">
-                <span className="rule-card-index">02 / SHIFTED</span>
+              <span className="rule-card-index">Borderless Shift</span>
                 <h3>Choose the <strong>WORD COLOR</strong></h3>
                 <p>During a Borderless Shift, select the color the word names.</p>
               </article>
             </div>
-            <p className="rule-note"><span aria-hidden="true">↳</span> The rule can shift between rounds. Watch the cue.</p>
+            <p className="rule-note"><span aria-hidden="true">↳</span> Watch the cue to see which rule is active.</p>
           </section>
           <ul className="fact-row" aria-label="Challenge facts">
             <li><b>60 sec</b><span>challenge</span></li>
@@ -584,7 +570,7 @@ function HomeScreen({
           </ul>
           <form className="name-form" noValidate onSubmit={(event) => { event.preventDefault(); onStart(); }}>
             <div className="name-label-row">
-              <label htmlFor="player-name">Enter your player name</label>
+              <label htmlFor="player-name">Player name</label>
               <span className={count > PLAYER_NAME_MAX ? "name-count is-over" : "name-count"} aria-hidden="true">{count}/{PLAYER_NAME_MAX}</span>
             </div>
             <div className="name-controls">
@@ -607,30 +593,39 @@ function HomeScreen({
             <p className="field-error" id="player-name-error" role="alert" data-testid="text-name-error">{nameError ?? ""}</p>
             <p className="name-note" id="player-name-help">Use a first name or nickname only. Up to {PLAYER_NAME_MAX} characters.</p>
           </form>
-          <p className="page-disclaimer start-disclaimer">Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.</p>
           <section className="practice-block" aria-labelledby="practice-title">
             <div>
               <h2 id="practice-title">Want a warm-up?</h2>
-              <p>Try a 5-second practice round. It is not scored or saved.</p>
+              <p>Five seconds. No score is recorded.</p>
             </div>
             <button className="secondary-button practice-button" type="button" onClick={onPractice} data-testid="button-practice"><Eye size={16} aria-hidden="true" /> Practice first</button>
           </section>
-          <Leaderboard entries={leaderboard} compact status={leaderboardStatus} error={leaderboardError} onRetry={onLeaderboardRetry} />
+          <p className="page-disclaimer start-disclaimer">Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.</p>
         </section>
-        <aside className="hero-stamp" aria-label="Example round: the word BLUE shown in red ink during a Borderless Shift">
-          <div className="stamp-header"><span>Example round</span><span className="stamp-live">Borderless Shift</span></div>
-          <div className="signal-card">
-            <span className="preview-rule">Active rule / word color</span>
-            <span className="sample-word" aria-hidden="true">BLUE</span>
-            <span className="preview-prompt">Choose the color named by the word</span>
-          </div>
-          <div className="stamp-footer">
-            <span className="stamp-caption"><b className="is-ink">RED INK</b> <span aria-hidden="true">/</span> choose <b className="is-word">BLUE</b></span>
-            <span className="color-dots" aria-hidden="true">
-              {COLOR_NAMES.map((color) => <i key={color} style={{ background: `hsl(${COLORS[color].css})` }} />)}
-            </span>
-          </div>
-        </aside>
+        <div className="hero-side-stack">
+          <aside className="hero-stamp" aria-label="Example round: the word BLUE shown in red ink during a Borderless Shift">
+            <div className="stamp-header"><span>Example round</span><span className="stamp-live">Borderless Shift</span></div>
+            <div className="signal-card">
+              <span className="preview-rule">Active rule / word color</span>
+              <span className="sample-word" aria-hidden="true">BLUE</span>
+              <span className="preview-prompt">Choose the color named by the word</span>
+            </div>
+            <div className="stamp-footer">
+              <span className="stamp-caption"><b className="is-ink">RED INK</b> <span aria-hidden="true">/</span> choose <b className="is-word">BLUE</b></span>
+              <span className="color-dots" aria-hidden="true">
+                {COLOR_NAMES.map((color) => <i key={color} style={{ background: `hsl(${COLORS[color].css})` }} />)}
+              </span>
+            </div>
+          </aside>
+          <Leaderboard
+            entries={leaderboard}
+            compact={!leaderboardExpanded}
+            onCompactToggle={() => setLeaderboardExpanded((expanded) => !expanded)}
+            status={leaderboardStatus}
+            error={leaderboardError}
+            onRetry={onLeaderboardRetry}
+          />
+        </div>
       </main>
     </div>
   );
@@ -956,7 +951,7 @@ function ResultsScreen({
 function AppFooter() {
   return (
     <footer className="app-footer" aria-label="Application information">
-      Flash Focus v1.0 · Developed by Mubashshir Ahmed
+      Flash Focus · Borderless Arcade
     </footer>
   );
 }
@@ -984,7 +979,7 @@ function AppHome() {
   const [resolvedCorrect, setResolvedCorrect] = useState<ColorName | null>(null);
   const [lastAnswer, setLastAnswer] = useState<"good" | "bad" | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [modal, setModal] = useState<null | "help" | "game-briefing" | "practice-briefing" | "practice-complete">(null);
+  const [modal, setModal] = useState<null | "help" | "practice-complete">(null);
   const [nameAttempted, setNameAttempted] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const lastLaunchAt = useRef(0);
@@ -1053,7 +1048,8 @@ function AppHome() {
 
   useEffect(() => {
     try {
-      setNameState((localStorage.getItem(NAME_KEY) || "").slice(0, 18));
+      const storedName = localStorage.getItem(NAME_KEY) || "";
+      setNameState(playerNameProblem(storedName) === null ? normalizePlayerName(storedName) : "");
       const storedSound = localStorage.getItem(SOUND_KEY);
       const storedCoach = localStorage.getItem(COACH_MODE_KEY);
       setSoundOn(storedSound === "on");
@@ -1293,26 +1289,14 @@ function AppHome() {
   const requestGame = () => {
     setNameAttempted(true);
     if (playerNameProblem(name)) { setModal(null); focusNameField(); return; }
-    if (readBriefingSeen()) beginCountdown("game");
-    else setModal("game-briefing");
+    beginCountdown("game");
   };
 
-  const requestPractice = () => setModal("practice-briefing");
+  const requestPractice = () => beginCountdown("practice");
 
   const openHelp = () => {
     if (screen === "playing" || screen === "practice") setPaused(true);
     setModal("help");
-  };
-
-  const confirmBriefing = (skipNextTime: boolean) => {
-    if (modal === "game-briefing") {
-      writeBriefingSeen(skipNextTime);
-      beginCountdown("game");
-    } else if (modal === "practice-briefing") {
-      beginCountdown("practice");
-    } else {
-      setModal(null);
-    }
   };
 
   useEffect(() => {
@@ -1499,7 +1483,7 @@ function AppHome() {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, [contenteditable='true']") || event.repeat) return;
-      // Dialogs own Escape/Tab; no game keys fire behind the briefing.
+      // Dialogs own Escape/Tab; no game keys fire behind them.
       if (modal) return;
       if ((screen === "playing" || screen === "practice") && !paused) {
         if (event.key.toLowerCase() === "p") { setPaused(true); return; }
@@ -1633,12 +1617,10 @@ function AppHome() {
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
       {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} dialogOpen={modal !== null} />}
       {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} wordColorSwitchAttempts={wordColorSwitchPerformance.attempts} wordColorSwitchCorrect={wordColorSwitchPerformance.correct} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={openHelp} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
-      {(modal === "help" || modal === "game-briefing" || modal === "practice-briefing") && (
+      {modal === "help" && (
         <HelpModal
           key={modal}
-          mode={modal === "game-briefing" ? "game" : modal === "practice-briefing" ? "practice" : "help"}
           inGame={screen === "playing" || screen === "practice"}
-          onConfirm={confirmBriefing}
           onClose={() => setModal(null)}
           soundOn={soundOn}
           voiceAnnouncementsOn={voiceAnnouncementsOn}

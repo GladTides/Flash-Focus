@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 import { PLAYER_NAME_MAX, playerNameProblem } from "../src/lib/player-name.ts";
 import { withDisplayRanks } from "../src/lib/leaderboard-rank.ts";
-import { readBriefingSeen, writeBriefingSeen } from "../src/lib/onboarding-storage.ts";
 
 assert.equal(PLAYER_NAME_MAX, 18, "must match backend MAX_NICKNAME_LENGTH");
 assert.equal(playerNameProblem(""), "empty");
@@ -26,11 +25,4 @@ const myRank = withDisplayRanks([{ score: 400, rank: 57 }]);
 assert.equal(myRank[0].displayRank, 57, "My rank scope keeps absolute rank");
 assert.deepEqual(withDisplayRanks([{ score: 5 }, { score: 3 }]).map((r) => r.displayRank), [1, 2]);
 
-// No localStorage in node: memory fallback must still work.
-assert.equal(readBriefingSeen(), false);
-writeBriefingSeen(true);
-assert.equal(readBriefingSeen(), true);
-writeBriefingSeen(false);
-assert.equal(readBriefingSeen(), false);
-
-console.log("onboarding checks passed");
+console.log("player name and leaderboard rank checks passed");
