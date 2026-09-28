@@ -39,7 +39,8 @@ Flash Focus is a 60-second Stroop-inspired attention game with a privacy-safe sh
 ## Product
 
 - Each round independently assigns INK COLOR or WORD COLOR from a balanced 70/30 sequence, with no more than four identical rules in a row.
-- One-minute sessions include streak multipliers, speed bonuses, Borderless Moments, separate sound/rule-announcement/coach controls, and accessible keyboard controls.
+- One-minute sessions include streak multipliers, speed bonuses, Focus Moments, separate sound/rule-announcement/coach controls, and accessible keyboard controls.
+- Player-facing and spoken copy uses “Arcade Game”, “A Thinking Challenge”, “rule shift”, and “Focus Moment”. The leaderboard title is the sole exception: “Al Futtaim Borderless Focus Leaderboard”.
 - Shared leaderboard scopes include Top 10, Top 100, My Rank, This Week, and All Time.
 - Nickname validation rejects identifying/contact-like strings and the participant can remove their leaderboard entry.
 

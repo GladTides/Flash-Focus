@@ -83,8 +83,8 @@ const CORRECT_VOICE_FEEDBACK = [
   "Right on target.",
 ];
 const RULE_ANNOUNCEMENTS = {
-  ink: ["Ink color.", "Choose the ink color.", "Focus on the color."],
-  word: ["Read the word.", "Word color.", "Focus on the word."],
+  ink: ["Rule shift. Ink color.", "Rule shift. Choose the ink color."],
+  word: ["Rule shift. Word color.", "Rule shift. Read the word."],
 } as const;
 
 function safeReadBoard(): LeaderboardEntry[] {
@@ -147,7 +147,7 @@ function currentMultiplier(streak: number) {
 
 function currentTier(streak: number) {
   if (streak >= 20) return "UNSTOPPABLE";
-  if (streak >= 15) return "BORDERLESS";
+  if (streak >= 15) return "LASER FOCUS";
   if (streak >= 10) return "IN THE ZONE";
   if (streak >= 5) return "SHARP";
   return "FOCUSED";
@@ -288,7 +288,7 @@ function Leaderboard({
     <section id={compact ? "leaderboard-preview" : "leaderboard-full"} className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
       <div className="leaderboard-preview-header">
         <div>
-          <h2 id={titleId}>BORDERLESS FOCUS LEADERBOARD</h2>
+          <h2 id={titleId}>Al Futtaim Borderless Focus Leaderboard</h2>
           <p className="micro-copy">Top performances from this challenge.</p>
         </div>
         <div className="leaderboard-header-actions">
@@ -442,7 +442,7 @@ function HelpModal({
         </div>
         <button className="icon-button" type="button" onClick={onClose} aria-label="Close How to Play" data-testid="button-close-help"><X size={17} aria-hidden="true" /></button>
       </div>
-      <p className="help-lede" id="help-lede">Follow the active rule. A Borderless Shift can change it between rounds.</p>
+      <p className="help-lede" id="help-lede">Follow the active rule. A rule shift can change it between rounds.</p>
       <div className="rule-compare" role="list" aria-label="The two rules">
         <div className="rule-chip is-ink" role="listitem">
           <strong>INK COLOR</strong>
@@ -458,7 +458,7 @@ function HelpModal({
         <li><span className="keycap">Shift</span><span><strong>Watch the cue</strong><small>The rule can change between rounds.</small></span></li>
         <li><span className="keycap">60s</span><span><strong>Play</strong><small>Score as many points as you can in one minute.</small></span></li>
         <li><span className="keycap">P</span><span><strong>Pause</strong><small>Press P to pause or resume.</small></span></li>
-        <li><span className="keycap">+50</span><span><strong>Borderless Moment</strong><small>Build a streak of 5 or more, then answer a WORD COLOR round correctly.</small></span></li>
+        <li><span className="keycap">+50</span><span><strong>Focus Moment</strong><small>Build a streak of 5 or more, then answer a WORD COLOR round correctly.</small></span></li>
       </ul>
       <p className="help-explanation">Flash Focus is inspired by the Stroop effect, where reading a word can interfere with identifying its ink color.</p>
       <p className="page-disclaimer help-disclaimer">{APP_DISCLAIMER}</p>
@@ -540,9 +540,9 @@ function HomeScreen({
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
       <main className="landing-grid">
         <section className="hero-copy" aria-labelledby="hero-title">
-          <span className="eyebrow">Borderless Arcade</span>
+          <span className="eyebrow">Arcade Game</span>
           <h1 className="display" id="hero-title">FLASH <em>FOCUS</em></h1>
-          <p className="hero-subtitle">A Borderless Thinking Challenge</p>
+          <p className="hero-subtitle">A Thinking Challenge</p>
           <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
           <section className="rule-block" aria-labelledby="rule-block-title">
             <div className="rule-block-heading">
@@ -556,9 +556,9 @@ function HomeScreen({
                 <p>Ignore the word. Select the color of its letters.</p>
               </article>
               <article className="rule-card is-word" data-testid="landing-rule-word">
-              <span className="rule-card-index">Borderless Shift</span>
+              <span className="rule-card-index">Rule shift</span>
                 <h3>Choose the <strong>WORD COLOR</strong></h3>
-                <p>During a Borderless Shift, select the color the word names.</p>
+                <p>During a rule shift, select the color the word names.</p>
               </article>
             </div>
             <p className="rule-note"><span aria-hidden="true">↳</span> Watch the cue to see which rule is active.</p>
@@ -603,8 +603,8 @@ function HomeScreen({
           <p className="page-disclaimer start-disclaimer">Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.</p>
         </section>
         <div className="hero-side-stack">
-          <aside className="hero-stamp" aria-label="Example round: the word BLUE shown in red ink during a Borderless Shift">
-            <div className="stamp-header"><span>Example round</span><span className="stamp-live">Borderless Shift</span></div>
+          <aside className="hero-stamp" aria-label="Example round: the word BLUE shown in red ink during a rule shift">
+            <div className="stamp-header"><span>Example round</span><span className="stamp-live">Rule shift</span></div>
             <div className="signal-card">
               <span className="preview-rule">Active rule / word color</span>
               <span className="sample-word" aria-hidden="true">BLUE</span>
@@ -830,7 +830,7 @@ function ResultsScreen({
 }) {
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
   const title =
-    accuracy >= 90 && moments >= 2 && score >= 900 ? "BORDERLESS THINKER" :
+    accuracy >= 90 && moments >= 2 && score >= 900 ? "SHARP THINKER" :
     average > 0 && average < 650 && accuracy >= 75 ? "LIGHTNING FOCUS" :
     accuracy >= 92 ? "PRECISION MASTER" :
     moments >= 2 ? "ADAPTABILITY ACE" :
@@ -911,7 +911,7 @@ function ResultsScreen({
           <div className="result-explanation">
             <h2>WHY WAS THAT DIFFICULT?</h2>
             <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
-            <p>Flash Focus turns that effect into a Borderless Thinking challenge: focus, adapt and make the right call when signals compete.</p>
+            <p>Flash Focus turns that effect into a thinking challenge: focus, adapt and make the right call when signals compete.</p>
           </div>
           <div className="public-note results-public-note">
             Leaderboard entries are public to anyone with the competition link. You can remove your nickname and entry from this competition.
@@ -929,7 +929,7 @@ function ResultsScreen({
             <div className="result-metric"><strong>{timeouts}</strong><span>timeouts</span></div>
             <div className="result-metric"><strong data-testid="text-result-streak">{bestStreak}</strong><span>best streak</span></div>
             <div className="result-metric"><strong>{completedShifts}</strong><span>word rounds</span></div>
-            <div className="result-metric"><strong>{moments}</strong><span>Borderless Moments</span></div>
+            <div className="result-metric"><strong>{moments}</strong><span>Focus Moments</span></div>
             <div className="result-metric"><strong data-testid="text-result-rank">{leaderboardPosition ? `#${leaderboardPosition}` : "—"}</strong><span>your rank{leaderboardStatus === "offline" ? " (this device)" : ""}</span></div>
           </div>
           <Leaderboard
@@ -951,7 +951,7 @@ function ResultsScreen({
 function AppFooter() {
   return (
     <footer className="app-footer" aria-label="Application information">
-      Flash Focus · Borderless Arcade
+      Flash Focus · Arcade Game
     </footer>
   );
 }
@@ -1540,19 +1540,19 @@ function AppHome() {
       const windowLength = Math.max(1, round.deadline - round.promptAt);
       const speedBonus = Math.max(0, Math.min(15, Math.round(15 * (1 - reaction / windowLength))));
       const multiplier = currentMultiplier(streak);
-      const borderlessMoment = round.shifted && streak >= 5;
-      const earned = Math.round((10 + speedBonus) * multiplier) + (borderlessMoment ? 50 : 0);
+      const focusMoment = round.shifted && streak >= 5;
+      const earned = Math.round((10 + speedBonus) * multiplier) + (focusMoment ? 50 : 0);
       setScore((value) => value + earned); setCorrect((value) => value + 1); setStreak(nextStreak); setBestStreak((value) => Math.max(value, nextStreak));
       if (round.shifted) setCompletedShifts((value) => value + 1);
-      if (borderlessMoment) setMoments((value) => value + 1);
+      if (focusMoment) setMoments((value) => value + 1);
       const reachedNewTier = currentMultiplier(nextStreak) > currentMultiplier(streak);
-      playTone(borderlessMoment ? "moment" : reachedNewTier ? "streak" : nextStreak >= 15 ? "highStreak" : "correct");
-      if (borderlessMoment) speakFeedback("Borderless moment! You handled the word rule.");
+      playTone(focusMoment ? "moment" : reachedNewTier ? "streak" : nextStreak >= 15 ? "highStreak" : "correct");
+      if (focusMoment) speakFeedback("Focus moment! You handled the word rule.");
       else if (Math.random() < 0.2) speakFeedback(CORRECT_VOICE_FEEDBACK[Math.floor(Math.random() * CORRECT_VOICE_FEEDBACK.length)]);
       resolveAndAdvance(
-        borderlessMoment ? "BORDERLESS MOMENT!\nYou handled the word rule.\n+50 BONUS" : `+${earned} · ${Math.round(reaction)} ms`,
-        borderlessMoment ? "moment" : "good",
-        borderlessMoment ? 850 : 280,
+        focusMoment ? "FOCUS MOMENT!\nYou handled the word rule.\n+50 BONUS" : `+${earned} · ${Math.round(reaction)} ms`,
+        focusMoment ? "moment" : "good",
+        focusMoment ? 850 : 280,
       );
     } else {
       setIncorrect((value) => value + 1);
