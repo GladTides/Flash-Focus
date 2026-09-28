@@ -550,33 +550,41 @@ function HomeScreen({
 }) {
   const count = normalizePlayerName(name).length;
   return (
-    <div className="screen-shell">
+    <div className="screen-shell home-shell">
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
       <main className="landing-grid">
         <section className="hero-copy" aria-labelledby="hero-title">
-          <span className="eyebrow">Borderless Arcade / 01</span>
+          <span className="eyebrow">Borderless Arcade</span>
           <h1 className="display" id="hero-title">FLASH <em>FOCUS</em></h1>
-          <section className="competition-promo" aria-labelledby="competition-promo-title">
-            <span className="competition-promo-mark" aria-hidden="true">🎯</span>
-            <div className="competition-promo-copy">
-              <h2 id="competition-promo-title">Can you make the Top 10?</h2>
-              <p>Challenge your attention, reaction speed and focus.</p>
-              <p>Play Flash Focus and see where you rank on the leaderboard.</p>
+          <p className="hero-subtitle">A Borderless Thinking Challenge</p>
+          <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
+          <section className="rule-block" aria-labelledby="rule-block-title">
+            <div className="rule-block-heading">
+              <span className="eyebrow">The challenge</span>
+              <h2 id="rule-block-title">One rule. One clear decision.</h2>
             </div>
+            <div className="rule-grid">
+              <article className="rule-card is-ink" data-testid="landing-rule-ink">
+                <span className="rule-card-index">01 / NORMAL</span>
+                <h3>Choose the <strong>INK COLOR</strong></h3>
+                <p>Ignore the word. Select the color of its letters.</p>
+              </article>
+              <article className="rule-card is-word" data-testid="landing-rule-word">
+                <span className="rule-card-index">02 / SHIFTED</span>
+                <h3>Choose the <strong>WORD COLOR</strong></h3>
+                <p>During a Borderless Shift, select the color the word names.</p>
+              </article>
+            </div>
+            <p className="rule-note"><span aria-hidden="true">↳</span> The rule can shift between rounds. Watch the cue.</p>
           </section>
-          <p className="tagline">Different signals. One clear decision.</p>
-          <p className="hero-support">Follow the active rule, filter competing signals, and adapt when the rule changes.</p>
           <ul className="fact-row" aria-label="Challenge facts">
-            <li><b>60s</b> challenge</li>
-            <li><b>1–6</b> keys or tap</li>
-            <li><b>Rules</b> switch</li>
+            <li><b>60 sec</b><span>challenge</span></li>
+            <li><b>1–6</b><span>keys or tap</span></li>
+            <li><b>Between rounds</b><span>rule shifts</span></li>
           </ul>
-          <p className="rule-line">
-            Follow the rule cue. Choose the <span className="rule-word is-ink">INK COLOR</span> or the <span className="rule-word is-word">WORD COLOR</span>. <strong className="rule-alert">The active rule can change after any round.</strong>
-          </p>
           <form className="name-form" noValidate onSubmit={(event) => { event.preventDefault(); onStart(); }}>
             <div className="name-label-row">
-              <label htmlFor="player-name">Player name</label>
+              <label htmlFor="player-name">Enter your player name</label>
               <span className={count > PLAYER_NAME_MAX ? "name-count is-over" : "name-count"} aria-hidden="true">{count}/{PLAYER_NAME_MAX}</span>
             </div>
             <div className="name-controls">
@@ -589,7 +597,7 @@ function HomeScreen({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 onBlur={onNameBlur}
-                placeholder="First name or nickname"
+                placeholder="Enter player name"
                 aria-invalid={nameError ? true : undefined}
                 aria-describedby={nameError ? "player-name-error player-name-help" : "player-name-help"}
                 data-testid="input-player-name"
@@ -599,28 +607,25 @@ function HomeScreen({
             <p className="field-error" id="player-name-error" role="alert" data-testid="text-name-error">{nameError ?? ""}</p>
             <p className="name-note" id="player-name-help">Use a first name or nickname only. Up to {PLAYER_NAME_MAX} characters.</p>
           </form>
-          <p className="page-disclaimer start-disclaimer">{APP_DISCLAIMER}</p>
+          <p className="page-disclaimer start-disclaimer">Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.</p>
           <section className="practice-block" aria-labelledby="practice-title">
             <div>
-              <h2 id="practice-title">New to Flash Focus?</h2>
-              <p>Try a 5-second practice round before starting. It is not scored.</p>
+              <h2 id="practice-title">Want a warm-up?</h2>
+              <p>Try a 5-second practice round. It is not scored or saved.</p>
             </div>
-            <button className="secondary-button practice-button" type="button" onClick={onPractice} data-testid="button-practice"><Eye size={16} aria-hidden="true" /> Practice round · 5 seconds</button>
-          </section>
-          <section className="about-card" aria-labelledby="about-flash-focus-title">
-            <span className="eyebrow">the thinking behind the game</span>
-            <h2 id="about-flash-focus-title">About Flash Focus</h2>
-            <p>Flash Focus is inspired by the Stroop Effect, a classic demonstration of how competing information can affect attention and response selection. The game turns that idea into a fast-paced color-matching challenge. It is for fun, not a measure of ability.</p>
+            <button className="secondary-button practice-button" type="button" onClick={onPractice} data-testid="button-practice"><Eye size={16} aria-hidden="true" /> Practice first</button>
           </section>
           <Leaderboard entries={leaderboard} compact status={leaderboardStatus} error={leaderboardError} onRetry={onLeaderboardRetry} />
         </section>
-        <aside className="hero-stamp" aria-label="Game preview: the word BLUE shown in red ink">
-          <div className="stamp-header"><span>signal / response</span><span className="stamp-live">live</span></div>
+        <aside className="hero-stamp" aria-label="Example round: the word BLUE shown in red ink during a Borderless Shift">
+          <div className="stamp-header"><span>Example round</span><span className="stamp-live">Borderless Shift</span></div>
           <div className="signal-card">
+            <span className="preview-rule">Active rule / word color</span>
             <span className="sample-word" aria-hidden="true">BLUE</span>
+            <span className="preview-prompt">Choose the color named by the word</span>
           </div>
           <div className="stamp-footer">
-            <span className="stamp-caption"><b className="is-ink">INK</b> red <span aria-hidden="true">/</span> <b className="is-word">WORD</b> blue</span>
+            <span className="stamp-caption"><b className="is-ink">RED INK</b> <span aria-hidden="true">/</span> choose <b className="is-word">BLUE</b></span>
             <span className="color-dots" aria-hidden="true">
               {COLOR_NAMES.map((color) => <i key={color} style={{ background: `hsl(${COLORS[color].css})` }} />)}
             </span>
