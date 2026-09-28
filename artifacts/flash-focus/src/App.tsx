@@ -951,7 +951,7 @@ function ResultsScreen({
 function AppFooter() {
   return (
     <footer className="app-footer" aria-label="Application information">
-      Flash Focus · Arcade Game
+      Flash Focus · Arcade Game Developed by Mubashshir Ahmed
     </footer>
   );
 }
