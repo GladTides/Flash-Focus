@@ -1,0 +1,555 @@
+Act as a senior web-game developer, UI/UX designer, accessibility specialist, and competition-submission reviewer.
+
+PROJECT
+
+Improve the existing FLASH FOCUS web game in this Replit project.
+
+The game is already deployed on Vercel and will be submitted to an internal AI competition. Work within the existing codebase. Do not rebuild the project from scratch unless the existing architecture is genuinely unusable.
+
+The objective is to simplify and polish the landing page so a competition judge can understand the game and start playing within approximately 5 seconds.
+
+Do not merely describe the changes. Inspect the repository, identify the active application entry points, implement the improvements, test the relevant flows, and leave the project in a deployment-ready state.
+
+IMPORTANT WORKING RULES
+
+1. Inspect the existing file structure, framework, package configuration, routes, components, styles, game logic, storage logic, and deployment configuration before editing.
+2. Preserve the existing technology stack.
+3. Preserve Vercel compatibility.
+4. Do not introduce a new framework or perform an unnecessary migration.
+5. Do not add external paid services, authentication, analytics, databases, APIs, image dependencies, or copyrighted assets.
+6. Do not expose secrets, internal information, personal information, or environment variables.
+7. Do not modify working gameplay logic unless required to fix a clear defect or integrate the improved landing flow.
+8. Reuse existing design tokens and components where sensible, but remove redundant components rather than retaining duplication.
+9. Keep the result responsive, accessible, fast, and suitable for an internal competition demonstration.
+10. Do not leave TODOs, placeholder controls, dead code, duplicate CSS, console errors, or unfinished states.
+
+GAME IDENTITY
+
+Game title:
+FLASH FOCUS
+
+Subtitle:
+A Borderless Thinking Challenge
+
+Tagline:
+See clearly. Think quickly. Adapt instantly.
+
+Primary instruction:
+Choose the INK COLOR during normal rounds.
+Choose the WORD during a BORDERLESS SHIFT.
+
+The game is a timed reaction and attention arcade experience inspired by the Stroop effect. It is not an intelligence, medical, psychological, cognitive, recruitment, productivity, or employee-performance assessment.
+
+CURRENT LANDING-PAGE PROBLEMS TO CORRECT
+
+The current landing page contains too many separate explanations of the same mechanic.
+
+The visible page currently repeats or fragments information across:
+
+- the “Can you make the Top 10?” callout;
+- “Different signals. One clear decision.”;
+- the paragraph beginning “Follow the active rule...”;
+- the chips or pills such as “60s challenge,” “1–6 keys or tap,” and “Rule switch”;
+- the yellow-accent instruction panel;
+- the practice panel;
+- the large “About Flash Focus” panel;
+- the instructional mock game card on the right;
+- the leaderboard section.
+
+The landing page also distributes the player setup, instructions, practice action, start action, explanation, leaderboard, and decorative preview across too many visually competing areas.
+
+The result is informative but not sufficiently focused for a competition landing screen.
+
+REDESIGN GOAL
+
+Create a clearer hierarchy with one primary path:
+
+1. Recognize the game.
+2. Understand the rule.
+3. Enter a player name.
+4. Start playing.
+
+The landing page must answer these questions immediately:
+
+- What is the game?
+- What must the player select?
+- What changes during a Borderless Shift?
+- Where does the player enter a name?
+- Which button starts the game?
+
+LANDING-PAGE CONTENT TO KEEP
+
+Keep these elements:
+
+1. Small Borderless Arcade or competition context label.
+2. Large FLASH FOCUS title.
+3. Subtitle “A Borderless Thinking Challenge.”
+4. Tagline “See clearly. Think quickly. Adapt instantly.”
+5. One short gameplay explanation.
+6. One compact normal-rule and shifted-rule explanation.
+7. Player-name input.
+8. One dominant Start Game button.
+9. One secondary Practice button.
+10. Compact gameplay facts:
+    - 60 seconds;
+    - tap or keys 1 through 6;
+    - rule changes every 15 seconds.
+11. Sound, Fullscreen, and How to Play controls.
+12. A compact leaderboard preview.
+13. The visual game preview on larger desktop screens, if it remains useful and does not compete with the primary action.
+
+CONTENT TO REMOVE OR CONSOLIDATE
+
+1. Remove the complete “About Flash Focus” card from the main landing-page flow.
+2. Move the concise Stroop explanation and disclaimer to the How to Play modal, Results screen, or a small expandable “About the challenge” disclosure below the principal content.
+3. Remove the large “Can you make the Top 10?” promotional card.
+4. Do not repeat leaderboard motivation in another promotional panel.
+5. Remove repetitive versions of:
+   - “Different signals. One clear decision.”
+   - “Follow the active rule.”
+   - “Choose the ink color.”
+   - “Choose the word color.”
+6. Use each important instruction only once in the main content hierarchy.
+7. Remove “Skip Practice” if the interface already has a direct Start Game action.
+8. Do not display both “Start Game” and “Skip Practice” as actions with the same outcome.
+9. Remove decorative labels that do not improve understanding.
+10. Remove fake, seeded, test, or demo leaderboard records from the production interface.
+11. Do not prefill the player-name field with a real person’s name.
+12. Use an empty field with a neutral placeholder such as:
+    “Enter player name”
+13. Remove any copy referring to learning, diagnosing, measuring, or assessing mental ability.
+14. Remove excessive technical or explanatory copy from above the fold.
+15. Remove unused components, obsolete CSS, and dead event handlers created by the old landing-page layout.
+
+RECOMMENDED LANDING-PAGE STRUCTURE
+
+Use the following structure.
+
+A. TOP BAR
+
+Left:
+- small game mark or existing abstract icon;
+- text label “Flash Focus.”
+
+Right:
+- Sound toggle;
+- Fullscreen control;
+- How to Play button.
+
+Use accessible labels and tooltips where appropriate. Ensure all controls are keyboard accessible.
+
+B. PRIMARY HERO
+
+Show:
+
+Small eyebrow:
+BORDERLESS ARCADE
+
+Large title:
+FLASH
+FOCUS
+
+Subtitle:
+A Borderless Thinking Challenge
+
+Tagline:
+See clearly. Think quickly. Adapt instantly.
+
+Keep the title visually dominant, but ensure the setup form and Start Game button remain visible without scrolling at 1366 × 768.
+
+C. SINGLE GAMEPLAY EXPLANATION
+
+Use one concise rule block:
+
+“Follow the active rule and make one clear decision.”
+
+Normal:
+Choose the INK COLOR, not the word.
+
+Borderless Shift:
+Choose the WORD, not the ink.
+
+Visually distinguish INK COLOR and WORD without relying only on color.
+
+Do not add another paragraph that repeats the same instruction.
+
+D. COMPACT GAME FACTS
+
+Present three compact items:
+
+- 60-second challenge
+- Tap or use keys 1–6
+- Borderless Shift every 15 seconds
+
+These may be small chips, but they must not look like clickable buttons unless they are interactive.
+
+E. PLAYER SETUP
+
+Label:
+Player name
+
+Input:
+- empty by default;
+- neutral placeholder “Enter player name”;
+- maximum 18 characters;
+- trim leading and trailing whitespace;
+- reject whitespace-only names;
+- safely render player input;
+- preserve the latest valid player name only when consistent with the existing privacy and storage behavior.
+
+Primary button:
+START GAME
+
+Secondary button:
+PRACTICE FIRST
+
+The Start Game button must be visually dominant.
+
+Pressing Enter from a valid name field should start the game.
+
+Typing in the name field must not activate gameplay shortcuts.
+
+Use a short validation message close to the input when the name is invalid.
+
+F. SUPPORTING MICROCOPY
+
+Below the player actions, show one discreet statement:
+
+“Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.”
+
+Do not repeat this disclaimer elsewhere on the landing page.
+
+G. GAME PREVIEW
+
+On desktop, retain or improve the visual game preview on the right side only if it strengthens immediate comprehension.
+
+The preview should:
+
+- look like an example rather than a live playable round;
+- show a mismatched example such as the word BLUE in a non-blue ink color;
+- label the active rule clearly;
+- use the same typography and visual language as the actual game;
+- include six small color indicators only if they improve understanding;
+- not contain misleading controls;
+- not look disabled or broken;
+- remain secondary to the Player Name and Start Game controls.
+
+At narrower widths, move the preview below the setup or hide it if necessary to keep the primary action above the fold.
+
+H. LEADERBOARD
+
+Keep a compact leaderboard preview, but visually separate it from the primary start flow.
+
+Requirements:
+
+- title: BORDERLESS FOCUS LEADERBOARD;
+- show only the Top 3 on the landing page;
+- provide a “View Top 10” control if the existing application supports a modal or expanded panel;
+- show only genuine local leaderboard records;
+- if no records exist, show a polished empty state such as:
+  “No scores yet. Set the first benchmark.”
+- do not seed “Tester 01” or other fabricated records;
+- do not expose personal names from development data;
+- preserve the existing valid localStorage leaderboard behavior;
+- continue safely if localStorage is unavailable or corrupt.
+
+The full Top 10 may remain on the Results screen or inside the leaderboard modal.
+
+HOW TO PLAY MODAL
+
+Move secondary information into a focused How to Play modal or panel.
+
+Include:
+
+1. Normal rule:
+   Select the ink color.
+
+2. Borderless Shift:
+   Select the color named by the word.
+
+3. Controls:
+   - tap or click a swatch;
+   - use number keys 1 through 6;
+   - use P to pause, if already supported.
+
+4. Timing:
+   - 60-second game;
+   - rule shift every 15 active seconds.
+
+5. Short explanation:
+   “Flash Focus is inspired by the Stroop effect, where reading a word can interfere with identifying its ink color.”
+
+6. Disclaimer:
+   “Flash Focus is an arcade game, not a medical, psychological, intelligence, or employee-performance assessment.”
+
+Modal behavior:
+
+- trap focus while open;
+- provide a visible close button;
+- close with Escape without disrupting native browser behavior;
+- restore focus to the control that opened the modal;
+- remain usable at small viewport heights;
+- avoid page-background interaction while open.
+
+VISUAL DIRECTION
+
+Preserve the current dark, modern arcade identity, including:
+
+- deep navy or near-black background;
+- white typography;
+- coral or orange title accent;
+- cyan supporting accents;
+- restrained gold for Borderless Shift;
+- vivid gameplay colors.
+
+Improve the layout through hierarchy rather than adding more decoration.
+
+Use:
+
+- consistent spacing;
+- a controlled maximum content width;
+- clear alignment;
+- readable typography;
+- restrained borders;
+- subtle shadows;
+- accessible focus rings;
+- limited animation;
+- clear primary and secondary button styles.
+
+Avoid:
+
+- excessive borders around every section;
+- too many independently boxed cards;
+- tiny body text;
+- low-contrast gray text;
+- excessive letter spacing on small labels;
+- decorative terminal-style copy that reduces readability;
+- large empty areas that push useful content below the fold;
+- excessive glow;
+- strobing;
+- large screen shakes;
+- unnecessary animation loops.
+
+RESPONSIVE REQUIREMENTS
+
+The landing page must work at:
+
+- 1366 × 768;
+- 1440 × 900;
+- 1920 × 1080;
+- common tablet widths;
+- practical mobile widths if the existing game supports mobile input.
+
+At 1366 × 768:
+
+- the title;
+- primary rule;
+- player-name input;
+- Start Game button;
+- Practice button;
+- top controls
+
+must be visible without page scrolling.
+
+A compact portion of the leaderboard may appear below the fold if necessary. Do not shrink critical text excessively just to fit every secondary element.
+
+Use responsive layout behavior such as:
+
+- two-column desktop hero;
+- one-column narrow layout;
+- fluid typography with sensible minimum and maximum sizes;
+- wrapping controls;
+- no horizontal scrolling;
+- no clipped buttons or modal content.
+
+ACCESSIBILITY
+
+1. Use semantic headings, labels, forms, buttons, dialogs, and landmarks.
+2. Maintain visible keyboard focus.
+3. Provide accessible names for icon-only controls.
+4. Ensure buttons and chips have correct semantic roles.
+5. Do not use color alone to communicate normal versus shifted rules.
+6. Maintain WCAG-aware contrast for text and controls.
+7. Respect `prefers-reduced-motion`.
+8. Support keyboard-only operation.
+9. Keep the landing page usable with sound disabled.
+10. Ensure text remains legible at 200% browser zoom where practical.
+11. Do not continuously announce decorative content through ARIA live regions.
+12. Ensure the modal and player-name validation are understandable to screen-reader users.
+
+COMPETITION-PRESENTATION REQUIREMENTS
+
+This game will be reviewed as an internal AI competition entry.
+
+The landing page should communicate:
+
+- a clear concept;
+- polished execution;
+- immediate playability;
+- accessibility;
+- thoughtful adaptation under changing rules;
+- subtle organizational relevance.
+
+Do not add:
+
+- unsupported claims that AI created or powers gameplay;
+- fabricated engagement statistics;
+- fabricated user numbers;
+- fabricated leaderboard entries;
+- claims that the game measures employee capability;
+- generic “AI-powered” badges;
+- internal confidential information;
+- partner-brand names or logos;
+- automated scoring claims unrelated to actual game behavior.
+
+If competition attribution is required, use a small neutral footer area rather than adding another hero card. Do not invent an attribution statement if none exists in the repository.
+
+FUNCTIONAL PRESERVATION
+
+Confirm that the redesign does not break:
+
+- player-name validation;
+- Start Game;
+- Practice;
+- countdown;
+- normal-round scoring;
+- Borderless Shift behavior;
+- timer behavior;
+- pause and resume;
+- keyboard controls;
+- sound toggle;
+- fullscreen;
+- How to Play;
+- results;
+- Play Again;
+- leaderboard writing and sorting;
+- Vercel routing and deployment.
+
+Do not reset or erase legitimate leaderboard data during ordinary use.
+
+If development currently contains hard-coded sample scores, remove the samples without deleting genuine runtime leaderboard logic.
+
+CODE QUALITY
+
+1. Reuse existing architecture and conventions.
+2. Extract repeated UI patterns where appropriate.
+3. Consolidate duplicate landing-page copy into one source.
+4. Remove unused imports, components, classes, style rules, and handlers.
+5. Avoid duplicate event listeners.
+6. Avoid uncontrolled timers.
+7. Safely clean up effects, observers, and listeners.
+8. Preserve strict typing if TypeScript is already used.
+9. Do not weaken lint or compiler settings merely to silence errors.
+10. Keep player-provided content out of raw HTML injection.
+11. Add comments only where logic is not self-explanatory.
+12. Do not overengineer a simple static landing-page component.
+
+SUGGESTED FINAL LANDING COPY
+
+Use this copy unless the existing brand requirements mandate equivalent wording:
+
+Eyebrow:
+BORDERLESS ARCADE
+
+Title:
+FLASH FOCUS
+
+Subtitle:
+A Borderless Thinking Challenge
+
+Tagline:
+See clearly. Think quickly. Adapt instantly.
+
+Instruction heading:
+One rule. One clear decision.
+
+Normal rule:
+Choose the INK COLOR, not the word.
+
+Shifted rule:
+During a BORDERLESS SHIFT, choose the WORD, not the ink.
+
+Game facts:
+60 seconds
+Tap or keys 1–6
+Rule shift every 15 seconds
+
+Player field label:
+Player name
+
+Player field placeholder:
+Enter player name
+
+Primary action:
+START GAME
+
+Secondary action:
+PRACTICE FIRST
+
+Disclaimer:
+Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.
+
+Empty leaderboard message:
+No scores yet. Set the first benchmark.
+
+Do not repeat this wording in additional cards on the same screen.
+
+IMPLEMENTATION PROCESS
+
+Perform the work in this order:
+
+1. Inspect the project and identify the active landing-page component and related styles.
+2. Identify which current landing elements are duplicated, hard-coded, unused, or misleading.
+3. Preserve a backup through normal version-control practices if available.
+4. Refactor the landing-page information architecture.
+5. Remove duplicated content and obsolete components.
+6. Implement the responsive visual hierarchy.
+7. Move extended instructions and the Stroop explanation into How to Play.
+8. Make the leaderboard compact and remove fake development entries.
+9. Verify that setup actions still connect to the existing game state correctly.
+10. Run the project’s existing lint, type-check, test, and production-build commands.
+11. Fix errors introduced by the changes.
+12. Review browser-console output for normal landing, practice, game-start, and results flows.
+13. Do not alter deployment settings unless required for the existing Vercel configuration.
+
+ACCEPTANCE CHECKLIST
+
+The work is complete only when:
+
+1. The landing page has one obvious primary action.
+2. A first-time user can understand the normal and shifted rules immediately.
+3. The main gameplay instruction appears only once in the primary content.
+4. The promotional Top 10 card is removed.
+5. The large About card is removed from the primary hero flow.
+6. Extended explanation is available through How to Play or a compact disclosure.
+7. Start Game and Practice First have distinct outcomes.
+8. No redundant Skip Practice button is shown.
+9. The name field is empty by default and uses a neutral placeholder.
+10. No personal or fabricated leaderboard data is hard-coded.
+11. The landing page fits at 1366 × 768 with the primary controls visible.
+12. The visual game preview remains secondary to starting the game.
+13. Mobile and narrow layouts have no horizontal overflow.
+14. All controls are keyboard accessible.
+15. Focus states are clearly visible.
+16. Reduced-motion preferences are respected.
+17. Empty or invalid names cannot start the game.
+18. Typing in the name field does not trigger game shortcuts.
+19. Sound, Fullscreen, and How to Play controls remain functional.
+20. The game, results, and leaderboard still operate correctly.
+21. The production build succeeds.
+22. There are no normal-use console errors.
+23. The project remains deployable to Vercel.
+24. No secrets, private data, unsupported AI claims, external branded assets, or employee-assessment claims are added.
+
+FINAL RESPONSE
+
+After implementing the changes, provide a concise summary containing:
+
+1. Files changed.
+2. Landing-page elements removed.
+3. Elements consolidated or moved.
+4. Functional behavior preserved.
+5. Validation commands run and their actual results.
+6. Any limitations that could not be tested in the available Replit environment.
+
+Do not claim that a device, browser, deployment, or interaction was tested unless that test was actually performed.
