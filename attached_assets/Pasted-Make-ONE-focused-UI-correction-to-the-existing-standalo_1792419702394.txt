@@ -1,0 +1,184 @@
+Make ONE focused UI correction to the existing standalone FLASH FOCUS landing page.
+
+Do not redesign the page.
+Do not change gameplay.
+Do not change the overall two-column desktop layout.
+Do not change the game preview, leaderboard, player setup, buttons, header, colors, or JavaScript behavior unless technically necessary for this specific fix.
+
+SOURCE OF TRUTH
+
+Compare the rule/challenge section in the original application with the current standalone version.
+
+The current standalone rule section is still too large vertically.
+
+The two rule cards contain only a few lines of information but stretch much too far downward, creating large empty areas inside both cards.
+
+This makes the section feel oversized and pushes Player Name / Start Game farther down the page.
+
+I want this rule section to have the compact proportions of the original version.
+
+SPECIFIC CHANGE
+
+Locate the CSS controlling the two landing-page rule cards:
+
+NORMAL
+
+and
+
+RULE SHIFT
+
+Remove any styling causing the cards to stretch vertically unnecessarily.
+
+Inspect specifically for:
+
+- fixed height;
+- large `min-height`;
+- `height: 100%`;
+- grid/flex stretch behavior;
+- `align-items: stretch`;
+- excessive vertical padding;
+- `flex: 1`;
+- large row sizing;
+- inherited height rules.
+
+Do not simply hide the empty space using overflow.
+
+Fix the underlying layout rule.
+
+DESIRED DESKTOP LAYOUT
+
+Keep the two cards side-by-side.
+
+They should be approximately equal width and naturally sized to their content.
+
+Target card height at desktop sizes:
+
+approximately 88px to 105px
+
+Do not use a rigid fixed height unless necessary. Prefer content-driven sizing with reasonable padding.
+
+Recommended visual density:
+
+NORMAL
+Choose the INK COLOR
+Ignore the word. Select the color of its letters.
+
+RULE SHIFT
+Choose the WORD COLOR
+Ignore the ink. Select the color the word names.
+
+The RULE SHIFT card must NOT contain excessive letter spacing.
+
+All text should wrap naturally.
+
+CARD SPACING
+
+Use approximately:
+
+- 12–16px internal vertical padding;
+- 14–16px horizontal padding;
+- 8–12px gap between label, primary instruction, and explanation;
+- 8–12px gap between the two cards;
+- restrained spacing below the cards before the yellow cue.
+
+Do not create large empty areas inside either card.
+
+SECTION STRUCTURE
+
+Preserve:
+
+THE CHALLENGE
+
+One rule. One clear decision.
+
+Then immediately below:
+
+[ NORMAL CARD ] [ RULE SHIFT CARD ]
+
+Then:
+
+↳ Watch the cue to see which rule is active.
+
+Then the divider and compact facts row.
+
+Reduce unnecessary vertical gaps between these elements.
+
+IMPORTANT
+
+Do NOT convert the rule cards into very wide/tall panels.
+
+Do NOT allow the cards to inherit the height of another container.
+
+Do NOT vertically center tiny amounts of content inside tall cards.
+
+Content should begin near the upper-left of each card with compact, deliberate padding.
+
+RESPONSIVE BEHAVIOR
+
+At desktop widths, keep both rule cards side-by-side.
+
+At narrow/mobile widths, stacking the cards is acceptable.
+
+When stacked, each card must remain content-height rather than becoming excessively tall.
+
+1366 × 768 is an important target.
+
+At 1366 × 768, the following should comfortably appear without scrolling:
+
+- FLASH FOCUS title
+- subtitle/tagline
+- compact rule section
+- facts row
+- Player Name
+- START GAME
+- Practice option
+- disclaimer
+
+DO NOT CHANGE
+
+Do not change:
+
+- FLASH FOCUS branding;
+- current typography hierarchy;
+- hero title size unless absolutely necessary;
+- Player Name functionality;
+- START GAME;
+- Practice;
+- gameplay;
+- leaderboard;
+- game preview;
+- Sound;
+- Fullscreen;
+- How to Play;
+- scoring;
+- localStorage;
+- responsive two-column desktop layout.
+
+This task is ONLY to make the challenge/rule area compact and eliminate unnecessary vertical space.
+
+VISUAL ACCEPTANCE TEST
+
+Before finishing, compare before and after.
+
+The corrected section should visually resemble:
+
+THE CHALLENGE                    One rule. One clear decision.
+
+┌─────────────────────────┐ ┌─────────────────────────┐
+│ NORMAL                  │ │ RULE SHIFT              │
+│ Choose the INK COLOR    │ │ Choose the WORD COLOR   │
+│ Ignore the word...      │ │ Ignore the ink...       │
+└─────────────────────────┘ └─────────────────────────┘
+
+↳ Watch the cue to see which rule is active.
+
+The cards should look like concise instruction cards, NOT large content panels.
+
+Confirm that the fix works at:
+- 1366 × 768
+- 1440 × 900
+- 1920 × 1080
+
+If browser inspection is available, report the final computed height of each rule card at 1366 × 768.
+
+Do not modify unrelated parts of the standalone application.
