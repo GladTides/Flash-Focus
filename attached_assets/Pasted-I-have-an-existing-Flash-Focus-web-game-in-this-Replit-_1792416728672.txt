@@ -1,0 +1,70 @@
+I have an existing Flash Focus web game in this Replit project. The game is currently deployed on Vercel and working correctly.
+
+For my company's internal AI competition, I have been asked to provide an HTML version and the source code.
+
+Inspect the existing project first. Do not modify or break the current application.
+
+Create a standalone distribution version of Flash Focus as a single `index.html` file that can be opened in a modern desktop browser and, as far as technically possible, reproduces the existing game.
+
+Requirements:
+
+1. Preserve the current gameplay, visual design, scoring, timing, rule-switch mechanic, practice mode, results screen, keyboard controls, accessibility features, sound controls, and local leaderboard behavior.
+
+2. Put all required HTML, CSS, and JavaScript into ONE self-contained `index.html`.
+
+3. Do not require React, Vite, npm, Node.js, Replit, Vercel, a build process, or a development server to use the standalone version.
+
+4. Do not use:
+   - external CDNs;
+   - external JavaScript libraries;
+   - external stylesheets;
+   - external fonts;
+   - external images;
+   - external audio;
+   - network requests;
+   - external APIs.
+
+5. Use browser-native APIs only where needed.
+
+6. The standalone version must not contain:
+   - API keys;
+   - tokens;
+   - passwords;
+   - environment variables;
+   - Vercel credentials;
+   - Replit credentials;
+   - deployment secrets;
+   - internal URLs;
+   - development/test data;
+   - personal information;
+   - source maps;
+   - analytics or tracking code.
+
+7. Do not include `.env` contents or copy secrets into the HTML.
+
+8. Keep player names safely handled as text rather than executable HTML.
+
+9. Preserve localStorage functionality where the browser permits it. Gracefully handle browsers or local-file contexts where storage functionality is restricted.
+
+10. Keep the existing disclaimer that Flash Focus is an arcade game and not an employee-performance, intelligence, medical, psychological, or cognitive assessment.
+
+11. Do not introduce third-party copyrighted assets or branded content.
+
+12. Keep the original project intact. Put the standalone version in a clearly separated location such as:
+
+   standalone/index.html
+
+13. After creating it, inspect the final HTML for external network dependencies and sensitive information.
+
+14. Run whatever local tests are genuinely available in this Replit environment.
+
+15. Do not claim that something was tested unless it was actually tested.
+
+At the end, report:
+- the standalone file location;
+- whether any functionality had to change;
+- whether any external dependencies remain;
+- what validation was actually performed;
+- anything I should check manually before submitting it to my company.
+
+Do not alter the production Vercel deployment unless necessary.

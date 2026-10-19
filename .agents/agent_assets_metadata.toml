@@ -1,0 +1,10 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "zEZWo06zsH0uDmtOqWZyy"
+uri = "file://standalone/index.html"
+type = "html"
+title = "Flash Focus — Standalone HTML Game"
+description = "Self-contained offline HTML game with local-only leaderboard; open the downloaded file in a modern browser."
+content_type = "text/html"
