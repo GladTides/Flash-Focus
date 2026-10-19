@@ -245,7 +245,7 @@ function Header({
     <header className="topbar" data-testid="header-game">
       <div className="brand">
         <span className="brand-mark" aria-hidden="true" />
-        <span>flash focus</span>
+        <span>flash focus</span><span className="brand-org">Al Futtaim</span>
       </div>
       <div className="top-actions">
         <button className="icon-button" type="button" onClick={onSound} aria-label={soundOn ? "Mute sound" : "Turn on sound"} aria-pressed={soundOn} data-testid="button-sound">
@@ -309,7 +309,7 @@ function Leaderboard({
     <section id={compact ? "leaderboard-preview" : "leaderboard-full"} className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
       <div className="leaderboard-preview-header">
         <div>
-          <h2 id={titleId}>FLASH FOCUS LEADERBOARD</h2>
+          <h2 id={titleId}>AL FUTTAIM BORDERLESS FOCUS LEADERBOARD</h2>
           <p className="micro-copy">Top performances from this challenge.</p>
         </div>
         <div className="leaderboard-header-actions">
@@ -561,7 +561,7 @@ function HomeScreen({
       <Header onHelp={onHelp} soundOn={soundOn} onSound={onSound} onFullscreen={onFullscreen} />
       <main className="landing-grid">
         <section className="hero-copy" aria-labelledby="hero-title">
-          <span className="eyebrow">Arcade Game</span>
+          <span className="eyebrow">Al Futtaim · Borderless Arcade Game</span>
           <h1 className="display" id="hero-title">FLASH <em>FOCUS</em></h1>
           <p className="hero-subtitle">A Thinking Challenge</p>
           <p className="tagline">See clearly. Think quickly. Adapt instantly.</p>
@@ -708,7 +708,7 @@ function GameScreen({
   return (
     <div className="screen-shell game-screen">
       <div className="game-topbar">
-        <div className="brand"><span className="brand-mark" aria-hidden="true" /><span>flash focus</span></div>
+        <div className="brand"><span className="brand-mark" aria-hidden="true" /><span>flash focus</span><span className="brand-org">Al Futtaim</span></div>
         <div className="game-stats">
           <div><span className="stat-label">Score</span><strong className="stat-value highlight" data-testid="text-score">{score.toLocaleString()}</strong></div>
           <div><span className="stat-label">Streak</span><strong className="stat-value" data-testid="text-streak">{streak}</strong></div>
@@ -933,7 +933,7 @@ function ResultsScreen({
           <div className="result-explanation">
             <h2>WHY WAS THAT DIFFICULT?</h2>
             <p>Flash Focus is based on the Stroop effect, described in a famous 1935 psychology study. Reading a word can interfere with naming its ink color, creating a small competition for attention.</p>
-            <p>Flash Focus turns that effect into a thinking challenge: focus, adapt and make the right call when signals compete.</p>
+            <p>Flash Focus turns that effect into a thinking challenge: focus, adapt and make the right call when signals compete. Created for the Al Futtaim Borderless Arcade Game competition.</p>
           </div>
           <div className="public-note results-public-note">
             Leaderboard entries are public to anyone with the competition link. You can remove your nickname and entry from this competition.
@@ -973,7 +973,7 @@ function ResultsScreen({
 function AppFooter() {
   return (
     <footer className="app-footer" aria-label="Application information">
-      Flash Focus · Arcade Game Developed by Mubashshir Ahmed
+      Flash Focus · Al Futtaim Borderless Arcade Game · Developed by Mubashshir Ahmed
     </footer>
   );
 }

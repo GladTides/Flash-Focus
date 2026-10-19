@@ -1082,3 +1082,11 @@ html.is-announcing .challenge-card::after {
   line-height: 1.6; font-weight: 700; letter-spacing: .12em;
 }
 html.is-announcing[data-next-rule="word"] .challenge-card::after { content: "WORD COLOR\A READ THE WORD"; color: #f5a56a; }
+
+/* Company mark beside the Flash Focus wordmark */
+.brand-org {
+  margin-left: 4px; padding-left: 10px; border-left: 1px solid hsl(var(--border));
+  font-family: var(--app-font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .16em;
+  text-transform: uppercase; color: hsl(var(--muted-foreground)); white-space: nowrap;
+}
+@media (max-width: 420px) { .brand-org { display: none; } }
