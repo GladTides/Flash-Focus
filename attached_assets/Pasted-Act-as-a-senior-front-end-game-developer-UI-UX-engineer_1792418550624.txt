@@ -1,0 +1,517 @@
+Act as a senior front-end game developer, UI/UX engineer, and release engineer.
+
+I need you to FIX the existing standalone HTML edition of my FLASH FOCUS game.
+
+CONTEXT
+
+There are two versions in this project:
+
+1. The original/main FLASH FOCUS application, which represents the intended polished design and behavior.
+2. The generated standalone version at:
+   /standalone/index.html
+
+The standalone HTML version was created so I can provide the HTML/source code for an internal company AI competition.
+
+The standalone version currently does NOT visually match the quality of the original application.
+
+IMPORTANT:
+Do not redesign the original application.
+Do not modify the production experience unless absolutely necessary.
+Do not invent a new visual direction.
+
+The original/main application in this repository is the SOURCE OF TRUTH for:
+- visual design;
+- typography;
+- spacing;
+- component proportions;
+- colors;
+- button styling;
+- game preview;
+- responsive behavior;
+- gameplay;
+- scoring;
+- timing;
+- practice;
+- leaderboard;
+- results;
+- controls.
+
+The goal is to make /standalone/index.html look and behave as close as reasonably possible to the polished original application while remaining a genuinely self-contained HTML file.
+
+FIRST: INSPECT BEFORE EDITING
+
+Before changing anything:
+
+1. Inspect the original application.
+2. Inspect /standalone/index.html.
+3. Compare:
+   - typography;
+   - CSS;
+   - hero dimensions;
+   - grid;
+   - spacing;
+   - rule presentation;
+   - player setup;
+   - game preview;
+   - leaderboard;
+   - buttons;
+   - responsive breakpoints;
+   - gameplay screens.
+4. Determine why the standalone version has visually diverged.
+5. Reuse/adapt the original CSS and behavior rather than approximating the design from scratch.
+
+Do not replace working original styling with generic styling.
+
+SPECIFIC PROBLEMS TO FIX
+
+The current standalone landing page has several visible problems.
+
+1. TYPOGRAPHY
+
+The standalone version currently uses excessive monospace/typewriter-style typography.
+
+This makes:
+- body copy harder to read;
+- rule cards look unfinished;
+- labels over-spaced;
+- text wrap badly;
+- the overall interface look less polished than the original.
+
+Restore the typography hierarchy of the original application using system fonts that can be embedded/referenced without external network dependencies.
+
+Use monospace only for small arcade/interface accents where the original design genuinely uses it.
+
+Body copy, buttons, instructions, form controls, headings, and important gameplay information must remain highly readable.
+
+Remove excessive `letter-spacing`.
+
+No sentence should appear with spacing like:
+
+C h o o s e   t h e   W O R D
+
+unless that exact treatment intentionally exists in the original application.
+
+2. SIMPLIFY THE RULE SECTION
+
+The current standalone page has two oversized rule cards taking up too much vertical space.
+
+Replace them with a much more compact and balanced rule presentation consistent with the original game.
+
+The player only needs to understand:
+
+NORMAL
+Choose the INK COLOR, not the word.
+
+RULE SHIFT
+Choose the WORD, not the ink.
+
+Also retain one small cue:
+
+“Watch the cue to see which rule is active.”
+
+Do not explain the same mechanic repeatedly.
+
+The rule area should support immediate comprehension rather than dominate half the landing page.
+
+3. HERO HIERARCHY
+
+Keep:
+
+FLASH FOCUS
+
+Subtitle:
+A Thinking Challenge
+
+Tagline:
+SEE CLEARLY. THINK QUICKLY. ADAPT INSTANTLY.
+
+The title should remain the strongest visual element.
+
+Below it, present the gameplay rule concisely and move quickly into player setup.
+
+A competition reviewer should be able to understand the concept and locate START GAME within a few seconds.
+
+4. PLAYER SETUP
+
+Keep:
+
+Player name
+
+START GAME
+
+Practice first
+
+But improve their relationship.
+
+START GAME must be the visually dominant primary action.
+
+Practice first must be a clearly secondary action located close to START GAME, rather than appearing like an unrelated section far below it.
+
+Keep the short explanation:
+
+“Five seconds. No score is recorded.”
+
+Do not pre-populate the standalone competition build with:
+“Mubashshir 01”
+
+The name input must be EMPTY on a clean first launch.
+
+Use the placeholder:
+
+Enter player name
+
+If the existing application intentionally restores the most recent local player's name after that player has used the game, that behavior may remain.
+
+5. REMOVE OLD “BORDERLESS” TERMINOLOGY
+
+The game has been renamed/refined and the word “Borderless” has been removed from the current experience.
+
+Search the ENTIRE standalone file and relevant source for obsolete user-facing uses of:
+
+Borderless
+BORDERLESS
+
+Remove them from the standalone user interface unless a remaining occurrence is demonstrably required by the current original application.
+
+For example, the screenshot currently shows:
+
+“Al Futtaim Borderless Focus Leaderboard”
+
+This should NOT remain.
+
+Use:
+
+FLASH FOCUS LEADERBOARD
+
+Do not casually rename internal JavaScript identifiers if doing so risks breaking working behavior. The priority is removal from player-facing content.
+
+6. GAME FACTS
+
+Keep a compact facts row such as:
+
+60 SEC
+Challenge
+
+1–6
+Keys or tap
+
+RULE SHIFT
+Between rounds
+
+Do not give these elements excessive visual weight.
+
+They should be informational and must not look like primary buttons.
+
+7. RIGHT-SIDE GAME PREVIEW
+
+Preserve the desktop preview because it communicates the game visually.
+
+However, polish it to match the original design.
+
+The preview should contain:
+
+EXAMPLE ROUND
+
+ACTIVE RULE / WORD COLOR
+
+A large example word such as:
+BLUE
+
+A concise instruction such as:
+Choose the color named by the word
+
+A small rule example such as:
+RED INK / choose BLUE
+
+Six color indicators if consistent with the original.
+
+The preview is NON-INTERACTIVE and must not look like an active scored game.
+
+Keep the preview secondary to START GAME.
+
+8. LEADERBOARD
+
+Rename the visible leaderboard:
+
+FLASH FOCUS LEADERBOARD
+
+Do not use “Borderless”.
+
+Keep:
+
+“Scores saved on this device only.”
+
+Show a compact leaderboard preview rather than allowing the leaderboard to dominate the landing page.
+
+Do NOT ship the competition standalone HTML with fabricated/test leaderboard data.
+
+Do NOT hard-code:
+Mubashshir 01
+Tester 01
+or other development players.
+
+On clean first use, if localStorage contains no genuine scores, display:
+
+“No scores yet. Set the first benchmark.”
+
+If legitimate local scores already exist in a user's browser, normal leaderboard behavior may show them.
+
+Keep:
+View Top 10
+
+if the Top 10 interface is implemented and working.
+
+9. USE SPACE MORE EFFECTIVELY
+
+The current screenshot shows a crowded left side and a large amount of unused space underneath the right-side leaderboard.
+
+Rebalance the desktop grid.
+
+At approximately 1366 × 768 and larger:
+
+LEFT:
+- identity;
+- concise rules;
+- game facts;
+- player setup;
+- Start;
+- Practice;
+- short disclaimer.
+
+RIGHT:
+- example game preview;
+- compact leaderboard.
+
+The vertical alignment of both columns should feel deliberate.
+
+Avoid enormous empty areas caused by unnecessarily tall elements in one column.
+
+10. DISCLAIMER
+
+Keep one discreet disclaimer:
+
+“Arcade challenge only. Not an intelligence, medical, psychological, or employee-performance assessment.”
+
+Do not repeatedly display variations of the same disclaimer on the landing page.
+
+11. TOP CONTROLS
+
+Compare with the original/main application.
+
+Restore the useful controls present in the production experience where appropriate, including:
+- Sound;
+- Fullscreen;
+- How to Play.
+
+The standalone version must not lose important controls merely because it was converted to one HTML file.
+
+Use accessible labels or tooltips for icon-only controls.
+
+12. RESPONSIVE DESIGN
+
+Desktop is particularly important because this will be submitted for a company competition.
+
+Explicitly review:
+
+1366 × 768
+1440 × 900
+1920 × 1080
+
+At 1366 × 768, the player should be able to see without scrolling:
+
+- FLASH FOCUS;
+- concise rules;
+- player name;
+- START GAME;
+- Practice;
+- top controls.
+
+Do not solve layout problems merely by making text extremely small.
+
+At narrower widths:
+- switch intelligently to one column;
+- prevent horizontal overflow;
+- keep controls reachable;
+- maintain usable touch targets.
+
+13. SELF-CONTAINED HTML REQUIREMENT
+
+/standalone/index.html must remain ONE genuinely self-contained file.
+
+All required:
+- HTML;
+- CSS;
+- JavaScript
+
+must remain inside that file.
+
+Do not introduce external:
+- CSS;
+- JavaScript;
+- fonts;
+- CDNs;
+- images;
+- audio files;
+- APIs;
+- network requests.
+
+Browser-native APIs are allowed.
+
+Opening the file should not depend on:
+- npm;
+- React runtime;
+- Vite;
+- Node;
+- Replit;
+- Vercel;
+- a build process.
+
+If localStorage has restrictions when opened directly through file://, fail gracefully.
+
+14. DO NOT BREAK GAMEPLAY
+
+This task is primarily a parity/polish correction to the standalone build.
+
+Do not rewrite stable game logic unnecessarily.
+
+Verify preservation of:
+
+- practice;
+- countdown;
+- 60-second game;
+- ordinary ink-color rule;
+- rule shifts;
+- answer selection;
+- keys 1–6;
+- streak;
+- multiplier;
+- scoring;
+- reaction timing;
+- pause/resume;
+- auto-pause;
+- sound;
+- fullscreen;
+- gameplay feedback;
+- results;
+- Play Again;
+- leaderboard;
+- removal of own leaderboard entry, if currently supported.
+
+15. ACCESSIBILITY
+
+Preserve or improve:
+
+- semantic buttons;
+- form labels;
+- visible focus indication;
+- keyboard navigation;
+- readable contrast;
+- reduced-motion support;
+- accessible names for icon buttons;
+- non-color-only instructions;
+- operation without sound.
+
+Do not reduce accessibility while trying to reproduce the production styling.
+
+16. PRIVACY / COMPETITION DISTRIBUTION
+
+This standalone HTML will be shared internally as source code.
+
+Before completion, inspect it for:
+
+- passwords;
+- API keys;
+- authentication tokens;
+- environment variables;
+- deployment credentials;
+- Replit secrets;
+- Vercel secrets;
+- analytics identifiers;
+- unnecessary internal URLs;
+- development/test personal information.
+
+Do not embed any such information.
+
+Do not add tracking or analytics.
+
+17. DO NOT ADD NEW FEATURES
+
+Do not use this task as an opportunity to add:
+- additional game modes;
+- AI chat;
+- achievements;
+- statistics dashboards;
+- extra animations;
+- marketing sections;
+- company trivia;
+- new branding;
+- external services.
+
+The goal is PARITY + POLISH, not expansion.
+
+ACCEPTANCE CRITERIA
+
+The standalone version is complete only when:
+
+[ ] It visually resembles the polished original application much more closely.
+
+[ ] Excessive monospace typography is removed.
+
+[ ] Excessive letter-spacing is removed.
+
+[ ] Rule instructions are compact and easy to understand.
+
+[ ] START GAME is visible and clearly dominant.
+
+[ ] Practice is a nearby secondary action.
+
+[ ] The clean first-run player-name field is empty.
+
+[ ] No development name is hard-coded.
+
+[ ] Player-facing “Borderless” terminology is removed.
+
+[ ] The leaderboard title is “FLASH FOCUS LEADERBOARD”.
+
+[ ] No fake/test leaderboard entry ships in the clean standalone build.
+
+[ ] The right-side game preview is polished and aligned.
+
+[ ] Desktop space is balanced more effectively.
+
+[ ] There is no horizontal overflow.
+
+[ ] The priority content works at 1366 × 768.
+
+[ ] Sound, Fullscreen, and How to Play are preserved where supported by the original.
+
+[ ] Gameplay behaves the same as the original.
+
+[ ] No external asset/network dependency is introduced.
+
+[ ] No secret or credential is included.
+
+[ ] /standalone/index.html remains one self-contained distributable file.
+
+[ ] The project has no newly introduced normal-use console errors.
+
+FINAL VALIDATION
+
+After editing:
+
+1. Run the application's available checks.
+2. Open the standalone version in the Replit preview if supported.
+3. Compare it against the original application.
+4. Test clean first launch.
+5. Test invalid/blank player name.
+6. Test Practice.
+7. Test Start Game.
+8. Test at least one normal answer.
+9. Test a rule shift.
+10. Test keyboard selection.
+11. Test Pause/Resume.
+12. Test Sound toggle.
+13. Test Fullscreen if the preview environment permits it.
+14. Test the end/results flow.
+15. Test Play Again.
+16. Test leaderboard

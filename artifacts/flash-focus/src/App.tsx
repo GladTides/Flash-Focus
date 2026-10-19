@@ -288,7 +288,7 @@ function Leaderboard({
     <section id={compact ? "leaderboard-preview" : "leaderboard-full"} className={compact ? "leaderboard-preview" : "leaderboard-full"} aria-labelledby={titleId}>
       <div className="leaderboard-preview-header">
         <div>
-          <h2 id={titleId}>Al Futtaim Borderless Focus Leaderboard</h2>
+          <h2 id={titleId}>FLASH FOCUS LEADERBOARD</h2>
           <p className="micro-copy">Top performances from this challenge.</p>
         </div>
         <div className="leaderboard-header-actions">
