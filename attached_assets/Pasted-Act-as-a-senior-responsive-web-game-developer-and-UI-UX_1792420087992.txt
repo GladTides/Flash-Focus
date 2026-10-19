@@ -1,0 +1,551 @@
+Act as a senior responsive web-game developer and UI/UX engineer.
+
+Perform a focused RESPONSIVE DESIGN PASS on the existing FLASH FOCUS standalone HTML.
+
+PROJECT CONTEXT
+
+FLASH FOCUS is an existing, working arcade game being prepared for an internal company AI competition.
+
+The current desktop/laptop design is the visual source of truth.
+
+The standalone version must remain:
+
+standalone/index.html
+
+and must remain a single self-contained HTML file.
+
+IMPORTANT DESIGN PRINCIPLE
+
+Do NOT attempt to fit the entire interface into one screen at every device size.
+
+Use different responsive priorities for:
+
+1. Laptop/Desktop Landing Page
+2. Phone Landing Page
+3. Active Gameplay
+
+The correct behavior is:
+
+LAPTOP / DESKTOP LANDING PAGE:
+The important starting experience should fit comfortably without scrolling at common laptop resolutions.
+
+PHONE LANDING PAGE:
+Vertical scrolling is acceptable and expected. Preserve readability, spacing, hierarchy, and touch usability rather than shrinking everything to fit one screen.
+
+ACTIVE GAMEPLAY:
+The essential game interface should fit within one active viewport wherever reasonably possible, especially on laptop and typical modern phone screens. The player should not need to scroll while answering rounds.
+
+Do not compromise the polished desktop design merely to force the mobile landing page into one viewport.
+
+--------------------------------------------------
+1. PROTECT THE CURRENT DESIGN
+--------------------------------------------------
+
+Do NOT redesign FLASH FOCUS.
+
+Preserve:
+
+- current color palette;
+- FLASH FOCUS branding;
+- typography hierarchy;
+- compact challenge/rule cards;
+- existing game preview;
+- player setup;
+- START GAME styling;
+- Practice First;
+- leaderboard;
+- Sound;
+- Fullscreen;
+- How to Play;
+- gameplay;
+- scoring;
+- timing;
+- rule changes;
+- results;
+- localStorage behavior.
+
+The objective is responsive adaptation, NOT a new design.
+
+Do not modify JavaScript unless a responsive interaction genuinely requires it.
+
+--------------------------------------------------
+2. TARGET VIEWPORTS
+--------------------------------------------------
+
+Optimize and, where testing tools are available, inspect these representative sizes:
+
+LAPTOP:
+- 1280×720
+- 1366×768
+- 1440×900
+
+DESKTOP:
+- 1920×1080
+- 2560×1440
+
+TABLET:
+- 768×1024
+- 820×1180
+- 1024×768
+
+PHONE:
+- 360×800
+- 375×812
+- 390×844
+- 393×873
+- 414×896
+- 430×932
+
+Use responsive CSS rather than separate desktop/mobile applications.
+
+--------------------------------------------------
+3. DESKTOP AND LAPTOP LANDING PAGE
+--------------------------------------------------
+
+At larger widths, preserve the established two-column layout.
+
+LEFT:
+
+- FLASH FOCUS identity
+- subtitle/tagline
+- compact challenge/rules
+- game facts
+- Player Name
+- START GAME
+- Practice First
+- disclaimer
+
+RIGHT:
+
+- example game round
+- leaderboard
+
+Do not unnecessarily stretch the interface across very large desktop monitors.
+
+Use a centered maximum-width wrapper.
+
+A reasonable target maximum content width is approximately:
+
+1200px–1400px
+
+but inspect the existing design first and preserve its proportions where already appropriate.
+
+At 1366×768, prioritize having these elements visible without normal page scrolling:
+
+- top controls;
+- FLASH FOCUS title;
+- subtitle/tagline;
+- compact challenge/rules;
+- game facts;
+- Player Name;
+- START GAME;
+- Practice First.
+
+Secondary content does not need to be forced into the viewport if doing so harms readability.
+
+--------------------------------------------------
+4. DO NOT REINTRODUCE THE RULE-CARD PROBLEM
+--------------------------------------------------
+
+The challenge/rule cards were previously too tall and have been corrected separately.
+
+Protect that correction.
+
+Desktop:
+
+Keep NORMAL and RULE SHIFT as two compact cards side-by-side.
+
+The cards must remain content-driven in height.
+
+Do NOT reintroduce:
+
+- large fixed heights;
+- excessive min-height;
+- flex/grid stretching;
+- large empty internal spaces;
+- excessive vertical padding;
+- excessive letter spacing.
+
+The cards should remain concise instruction components, not large panels.
+
+Expected content:
+
+NORMAL
+Choose the INK COLOR, not the word.
+
+RULE SHIFT
+Choose the WORD, not the ink.
+
+Followed by the compact cue:
+
+“Watch the cue to see which rule is active.”
+
+On narrow phones, the two cards may stack vertically.
+
+Even when stacked, they must remain compact and content-height.
+
+--------------------------------------------------
+5. PHONE LANDING PAGE
+--------------------------------------------------
+
+IMPORTANT:
+
+Do NOT force the entire mobile landing page into one viewport.
+
+Vertical scrolling on the phone landing page is ACCEPTABLE.
+
+Do not shrink fonts, buttons, instructions, or spacing excessively simply to avoid vertical scrolling.
+
+At phone widths, switch to a clean single-column layout.
+
+Recommended content order:
+
+1. Compact header
+2. FLASH FOCUS
+3. Subtitle
+4. Tagline
+5. Compact challenge/rules
+6. Game facts
+7. Player Name
+8. START GAME
+9. Practice First
+10. Example Round
+11. Leaderboard
+12. Disclaimer/supporting information as appropriate
+
+The most important requirement is that a new player reaches START GAME quickly.
+
+Do not place the example game card or leaderboard above Player Name / START GAME on phone.
+
+--------------------------------------------------
+6. MOBILE HEADER
+--------------------------------------------------
+
+Prevent the header controls from colliding with:
+
+- Flash Focus logo;
+- page edges;
+- each other.
+
+Current controls may include:
+
+- Sound
+- Fullscreen
+- How to Play
+
+At small widths:
+
+- use compact controls;
+- reduce nonessential spacing;
+- maintain adequate touch targets;
+- allow icon-only presentation where the meaning remains accessible;
+- retain accessible labels.
+
+If Fullscreen is unavailable on a mobile browser, fail gracefully.
+
+Do not allow the header to create horizontal scrolling.
+
+--------------------------------------------------
+7. ACTIVE GAMEPLAY IS DIFFERENT
+--------------------------------------------------
+
+The ACTIVE GAME should behave differently from the mobile landing page.
+
+During the 60-second challenge, the player should NOT normally need to scroll to answer.
+
+Prioritize fitting these essential elements within one active viewport:
+
+- timer;
+- score;
+- streak/multiplier where applicable;
+- current rule;
+- Stroop word;
+- answer/color buttons;
+- pause/control access.
+
+This applies particularly to:
+
+- 1366×768 laptop;
+- common 390×844-class phones;
+- 414×896-class phones.
+
+The essential gameplay interface must have higher priority than secondary decorative content.
+
+--------------------------------------------------
+8. MOBILE GAMEPLAY LAYOUT
+--------------------------------------------------
+
+On narrow phones:
+
+Use a compact game-specific layout rather than simply stacking the desktop game screen.
+
+The main Stroop word must remain large and immediately readable.
+
+Use responsive display typography, for example through `clamp()`, while maintaining sensible minimum and maximum sizes.
+
+The word must never:
+
+- overflow horizontally;
+- become clipped;
+- overlap controls;
+- become too small to identify quickly.
+
+The answer choices should use a touch-friendly responsive grid.
+
+Depending on available width:
+
+- 2 columns × 3 rows is acceptable for six choices;
+- 3 columns × 2 rows may be used when sufficient width exists.
+
+Choose whichever produces larger, clearer touch targets for the actual viewport.
+
+Do not force six tiny buttons into one horizontal row on phone.
+
+Each answer button must continue to show:
+
+- gameplay color;
+- readable color name.
+
+Target approximately 44×44 CSS pixels or larger for touch controls wherever practical.
+
+--------------------------------------------------
+9. MOBILE VIEWPORT HEIGHT
+--------------------------------------------------
+
+Pay special attention to HEIGHT as well as width.
+
+Flash Focus is a speed-based game, so a layout that technically fits horizontally but requires scrolling vertically during gameplay is not sufficient.
+
+Use modern viewport units appropriately, including:
+
+100dvh
+
+where supported, with a reasonable fallback for browsers requiring traditional viewport units.
+
+Account for mobile browser chrome and dynamically changing viewport height.
+
+Do NOT globally lock the page to 100vh if doing so clips content.
+
+Landing page:
+natural vertical scrolling is allowed.
+
+Gameplay:
+prefer a game shell based on available dynamic viewport height.
+
+--------------------------------------------------
+10. LANDING-PAGE SCROLLING
+--------------------------------------------------
+
+Mobile landing page:
+
+ALLOW normal vertical scrolling.
+
+Do not use:
+
+overflow: hidden
+
+on the entire mobile landing page.
+
+Do not hide lower content just to produce a one-screen screenshot.
+
+The following can appear further down the page:
+
+- example round;
+- leaderboard;
+- explanatory/supporting material.
+
+This is intentional.
+
+The priority is:
+
+readability → comprehension → Start Game → secondary content.
+
+--------------------------------------------------
+11. ACTIVE-GAME SCROLLING
+--------------------------------------------------
+
+During gameplay, minimize or eliminate page scrolling where reasonably possible.
+
+If the interface exceeds an unusually short viewport:
+
+1. Reduce nonessential gaps.
+2. Reduce decorative whitespace.
+3. Reduce secondary UI prominence.
+4. Responsively adjust display typography.
+5. Compact nonessential status elements.
+
+Do NOT immediately shrink answer buttons or primary instructions to unusable sizes.
+
+Gameplay usability takes priority over decorative spacing.
+
+--------------------------------------------------
+12. EXAMPLE ROUND
+--------------------------------------------------
+
+Desktop/laptop:
+
+Keep the Example Round in the right column.
+
+Phone:
+
+Move Example Round below the main Start Game area.
+
+The Example Round is supporting content and must NOT push START GAME far down the page.
+
+Scale the example responsively.
+
+Prevent:
+
+- example word overflow;
+- decorative-circle clipping;
+- labels leaving the panel;
+- horizontal scrolling.
+
+The example remains non-interactive.
+
+--------------------------------------------------
+13. LEADERBOARD
+--------------------------------------------------
+
+Desktop/laptop:
+
+Keep the leaderboard in the right column beneath the Example Round.
+
+Phone:
+
+Move the leaderboard below:
+
+- game identity;
+- rules;
+- setup;
+- START GAME;
+- Practice;
+- Example Round.
+
+Do not make the leaderboard compete with START GAME for initial attention.
+
+On narrow screens:
+
+- allow responsive columns;
+- truncate unusually long names gracefully when necessary;
+- preserve score readability;
+- avoid horizontal scrolling.
+
+Do not reduce legitimate names to unreadably narrow columns.
+
+--------------------------------------------------
+14. PLAYER SETUP ON PHONE
+--------------------------------------------------
+
+Player Name and START GAME must remain highly usable.
+
+On desktop/laptop, the name input and START GAME may remain on the same row if that matches the existing design.
+
+On phone, stack them if necessary:
+
+Player Name
+[________________________]
+
+[      START GAME      ]
+
+[     Practice First   ]
+
+START GAME should be large, obvious, and easy to tap.
+
+Do not use tiny side-by-side buttons if stacking creates a better mobile experience.
+
+--------------------------------------------------
+15. MODALS AND OVERLAYS
+--------------------------------------------------
+
+Review responsive behavior for:
+
+- How to Play;
+- Pause;
+- Restart confirmation;
+- Results;
+- Top 10 leaderboard;
+- any settings/confirmation overlays.
+
+Dialogs must fit narrow phone screens.
+
+Use sensible responsive constraints such as:
+
+width: min(...)
+max-width: ...
+max-height: calc(100dvh - 32px)
+
+Allow internal modal scrolling when content exceeds the available viewport.
+
+Do not allow modal content to extend behind browser controls or beyond the visible screen.
+
+--------------------------------------------------
+16. RESULTS SCREEN
+--------------------------------------------------
+
+Results must also be responsive.
+
+Desktop:
+retain the polished existing results layout.
+
+Phone:
+allow vertical scrolling if the results contain more information than fits within one viewport.
+
+Unlike ACTIVE GAMEPLAY, the Results screen does NOT need to fit entirely into one screen.
+
+Do NOT make result statistics tiny simply to remove scrolling.
+
+Priority:
+
+1. final score;
+2. performance title;
+3. key statistics;
+4. Play Again;
+5. secondary statistics;
+6. leaderboard/supporting information.
+
+PLAY AGAIN must be easy to locate.
+
+--------------------------------------------------
+17. SAFE AREAS
+--------------------------------------------------
+
+Where relevant on modern phones, support:
+
+env(safe-area-inset-top)
+env(safe-area-inset-right)
+env(safe-area-inset-bottom)
+env(safe-area-inset-left)
+
+Do not allow essential controls to sit behind device/browser interface areas.
+
+--------------------------------------------------
+18. CSS IMPLEMENTATION
+--------------------------------------------------
+
+Prefer:
+
+- CSS Grid;
+- Flexbox;
+- clamp();
+- min();
+- max();
+- minmax();
+- max-width;
+- fluid widths;
+- responsive gaps;
+- appropriate media queries;
+- dynamic viewport units.
+
+Avoid:
+
+- unnecessary fixed page heights;
+- fixed widths causing overflow;
+- hard-coded positioning for individual screen sizes;
+- CSS transforms used to scale the whole interface;
+- browser zoom tricks;
+- massive numbers of viewport-specific overrides.
+
+Use the smallest practical number of breakpoints.
+
+Recommended breakpoint
