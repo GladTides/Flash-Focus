@@ -1,0 +1,327 @@
+Act as a senior JavaScript debugging engineer.
+
+There is ONE functional regression in the FLASH FOCUS standalone HTML version:
+
+standalone/index.html
+
+The “How to Play” button is not working.
+
+The main/original application is the SOURCE OF TRUTH.
+
+IMPORTANT:
+Do not redesign anything.
+Do not change the current responsive layout.
+Do not modify game rules, scoring, timing, leaderboard, styling, rule cards, or other working functionality.
+
+This is a focused debugging task.
+
+GOAL
+
+Make the “How to Play” button in standalone/index.html work correctly and behave the same way as the original/main FLASH FOCUS application.
+
+STEP 1: COMPARE ORIGINAL VS STANDALONE
+
+Inspect the original application’s working How to Play implementation.
+
+Identify:
+
+1. the How to Play trigger/button;
+2. its event listener;
+3. the modal/dialog markup;
+4. open/close functions;
+5. CSS classes or attributes controlling visibility;
+6. Escape behavior;
+7. backdrop behavior;
+8. focus management;
+9. any initialization code required;
+10. any dependency that was lost during standalone conversion.
+
+Then inspect standalone/index.html and identify why the equivalent functionality is failing.
+
+Do NOT guess the cause before comparing the implementations.
+
+STEP 2: CHECK COMMON STANDALONE REGRESSION CAUSES
+
+Specifically inspect for:
+
+- incorrect or changed element IDs;
+- missing modal HTML;
+- missing JavaScript functions;
+- event listener attached before the DOM exists;
+- event listener never initialized;
+- duplicate IDs;
+- JavaScript exceptions occurring earlier and preventing initialization;
+- obsolete selectors from the original application;
+- button accidentally acting as a form-submit control;
+- incorrect `type` attribute;
+- hidden modal remaining `display:none`;
+- incorrect `hidden` attribute handling;
+- broken `aria-hidden` logic;
+- CSS z-index problems;
+- modal opening behind another element;
+- `pointer-events:none`;
+- missing standalone CSS;
+- event propagation immediately closing the modal after opening;
+- missing close-button listener;
+- stale framework-specific logic from the original application;
+- code that depended on React/framework behavior and was not converted to vanilla JavaScript.
+
+Check the browser console before and after clicking How to Play.
+
+Fix the ROOT CAUSE rather than adding a workaround.
+
+STEP 3: REQUIRED HOW-TO-PLAY BEHAVIOR
+
+Clicking:
+
+HOW TO PLAY
+
+must open a proper modal/dialog.
+
+The modal should explain, concisely:
+
+HOW TO PLAY
+
+NORMAL ROUND
+
+Choose the INK COLOR, not the word.
+
+Example:
+If BLUE appears in red ink, choose RED.
+
+RULE SHIFT
+
+When the rule changes, choose the COLOR NAMED BY THE WORD, not the ink.
+
+Example:
+If BLUE appears in red ink during a Rule Shift, choose BLUE.
+
+CONTROLS
+
+• Click or tap a color
+• Keys 1–6 select the corresponding color
+• P pauses/resumes during gameplay if already supported
+
+GAME
+
+• 60-second challenge
+• Rule changes occur between rounds
+• Build streaks for higher multipliers
+• Practice mode does not affect your score
+
+Include the existing concise disclaimer:
+
+“Flash Focus is an arcade game, not an intelligence, medical, psychological, cognitive, or employee-performance assessment.”
+
+Do not reintroduce “Borderless” terminology.
+
+Keep the copy concise enough to work well on laptop and phone.
+
+STEP 4: MODAL INTERACTION
+
+Required behavior:
+
+OPEN
+
+- Clicking How to Play opens exactly one dialog.
+- The modal appears above the rest of the interface.
+- Opening the modal must not start the game.
+- Opening the modal must not alter score, leaderboard, player name, practice state, or game state.
+
+CLOSE
+
+The modal must close through:
+
+1. visible Close button;
+2. Escape key;
+3. backdrop click, if consistent with the original implementation.
+
+Clicking inside the modal must NOT accidentally close it.
+
+ACCESSIBILITY
+
+Use appropriate dialog semantics:
+
+role="dialog"
+
+aria-modal="true"
+
+Provide an accessible dialog title.
+
+When opened:
+- move keyboard focus into the dialog.
+
+When closed:
+- return focus to the How to Play button.
+
+Keyboard users must be able to reach the modal controls.
+
+If practical, keep Tab focus inside the modal while it is open.
+
+Do not aggressively intercept Escape in a way that breaks native browser behavior.
+
+STEP 5: RESPONSIVE BEHAVIOR
+
+The How to Play modal must work correctly on:
+
+360×800
+390×844
+414×896
+768×1024
+1366×768
+1920×1080
+
+PHONE
+
+The modal does NOT need to fit all content into one screen.
+
+Vertical scrolling INSIDE the dialog is acceptable.
+
+Do not shrink the explanatory text excessively.
+
+Use responsive constraints similar to:
+
+width: min(560px, calc(100vw - 32px));
+max-height: calc(100dvh - 32px);
+overflow-y: auto;
+
+Provide an appropriate fallback where necessary.
+
+The close control must remain easy to find and tap.
+
+DESKTOP
+
+Keep the modal centered, readable, and appropriately sized.
+
+Do not make it unnecessarily wide.
+
+STEP 6: GAME STATE SAFETY
+
+If How to Play can be opened BEFORE gameplay:
+- opening it must not alter game state.
+
+If How to Play can be opened DURING gameplay:
+inspect the behavior of the original application and reproduce it.
+
+If the original pauses gameplay while How to Play is open:
+preserve that behavior.
+
+If the game was already paused:
+closing How to Play must NOT accidentally resume it.
+
+Never create:
+- duplicate game timers;
+- duplicate pause operations;
+- duplicate event listeners;
+- duplicate dialogs.
+
+STEP 7: DO NOT BREAK DIRECT HTML USE
+
+Remember that:
+
+standalone/index.html
+
+is intended to be a self-contained competition submission.
+
+How to Play must NOT depend on:
+
+- React;
+- framework runtime;
+- external JavaScript;
+- external CSS;
+- CDN;
+- npm;
+- Node;
+- Replit APIs;
+- Vercel APIs;
+- network requests.
+
+It must work through the JavaScript and CSS contained in standalone/index.html.
+
+STEP 8: REGRESSION PROTECTION
+
+DO NOT change unrelated working functionality.
+
+Specifically preserve:
+
+- current desktop layout;
+- responsive behavior;
+- compact NORMAL / RULE SHIFT cards;
+- Flash Focus branding;
+- START GAME;
+- player-name validation;
+- Practice First;
+- countdown;
+- gameplay;
+- scoring;
+- streak;
+- multiplier;
+- timer;
+- rule shifts;
+- Sound;
+- Fullscreen;
+- Pause;
+- Results;
+- Play Again;
+- leaderboard;
+- localStorage.
+
+Do not use this bug fix as an opportunity to redesign another area.
+
+STEP 9: ACTUAL TESTING
+
+After fixing the problem, actually test:
+
+TEST 1
+Fresh landing page → click How to Play → modal opens.
+
+TEST 2
+Click Close → modal closes.
+
+TEST 3
+Open again → press Escape → modal closes.
+
+TEST 4
+Open repeatedly → only one modal exists.
+
+TEST 5
+Keyboard Tab → How to Play → Enter/Space → modal opens.
+
+TEST 6
+Close → focus returns sensibly to How to Play.
+
+TEST 7
+Verify START GAME still works.
+
+TEST 8
+Verify Practice First still works.
+
+TEST 9
+Verify Sound and Fullscreen controls were not broken.
+
+TEST 10
+Verify there are no newly introduced console errors.
+
+TEST 11
+Test the modal at a phone viewport such as 390×844.
+
+TEST 12
+Test at laptop viewport 1366×768.
+
+TEST 13
+If supported by the available environment, test the self-contained file directly rather than only through the Replit-hosted URL.
+
+Do not report a test as passed unless it was actually performed.
+
+FINAL RESPONSE
+
+After fixing the issue, report ONLY:
+
+1. Root cause of the How to Play failure.
+2. Exact code area changed.
+3. Whether the original implementation was reused or adapted.
+4. Tests actually performed and results.
+5. Whether any console errors remain.
+6. Confirmation that no unrelated gameplay or layout behavior was intentionally changed.
+
+Do not make unrelated changes.
