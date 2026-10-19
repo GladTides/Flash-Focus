@@ -1,5 +1,6 @@
 import { type CSSProperties, type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Route, Switch, Router as WouterRouter, useLocation } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import {
   ArrowLeft,
   ArrowRight,
@@ -83,8 +84,8 @@ const CORRECT_VOICE_FEEDBACK = [
   "Right on target.",
 ];
 const RULE_ANNOUNCEMENTS = {
-  ink: ["Rule shift. Ink color.", "Rule shift. Choose the ink color."],
-  word: ["Rule shift. Word color.", "Rule shift. Read the word."],
+  ink: ["Ink color.", "Choose the ink color.", "Focus on the color."],
+  word: ["Read the word.", "Word color.", "Focus on the word."],
 } as const;
 
 function safeReadBoard(): LeaderboardEntry[] {
@@ -132,6 +133,26 @@ function safeWriteBoard(entries: LeaderboardEntry[]) {
   }
 }
 
+function speakAndWait(text: string, rate: number, pitch: number, volume: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) { resolve(); return; }
+    let done = false;
+    let fallback = 0;
+    const finish = () => { if (done) return; done = true; window.clearTimeout(fallback); resolve(); };
+    fallback = window.setTimeout(finish, Math.min(8000, 1500 + text.length * 80));
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = rate;
+      utterance.pitch = pitch;
+      utterance.volume = volume;
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      window.speechSynthesis.speak(utterance);
+    } catch { finish(); }
+  });
+}
+
 function randomColor(exclude?: ColorName): ColorName {
   const choices = exclude ? COLOR_NAMES.filter((item) => item !== exclude) : COLOR_NAMES;
   return choices[Math.floor(Math.random() * choices.length)];
@@ -147,7 +168,7 @@ function currentMultiplier(streak: number) {
 
 function currentTier(streak: number) {
   if (streak >= 20) return "UNSTOPPABLE";
-  if (streak >= 15) return "LASER FOCUS";
+  if (streak >= 15) return "FOCUS FLOW";
   if (streak >= 10) return "IN THE ZONE";
   if (streak >= 5) return "SHARP";
   return "FOCUSED";
@@ -766,6 +787,7 @@ function GameScreen({
           <div className="modal-actions modal-actions-center">
             <button className="primary-button" type="button" onClick={onPause} data-testid="button-resume"><Play size={16} aria-hidden="true" className="button-icon-start" /> Resume</button>
             <button className="secondary-button" type="button" onClick={onRestart} data-testid="button-restart"><RotateCcw size={16} aria-hidden="true" className="button-icon-start" /> Restart</button>
+            <button className="secondary-button" type="button" onClick={() => window.dispatchEvent(new CustomEvent("ff-quit"))} data-testid="button-quit-paused">Quit</button>
           </div>
         </GameDialog>
       )}
@@ -993,6 +1015,13 @@ function AppHome() {
   const [average, setAverage] = useState(0);
   const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null);
   const activeElapsed = useRef(0);
+  const speechHold = useRef(false);
+  const advanceToken = useRef(0);
+  const pendingSpeech = useRef<Promise<void>>(Promise.resolve());
+  const resetSpeechState = () => {
+    advanceToken.current++; speechHold.current = false; pendingSpeech.current = Promise.resolve();
+    document.documentElement.classList.remove("is-announcing");
+  };
   const lastTickAt = useRef(0);
   const ending = useRef(false);
   const answerLocked = useRef(false);
@@ -1182,38 +1211,18 @@ function AppHome() {
   }, [soundOn]);
 
   const speakFeedback = useCallback((text: string) => {
-    if (!coachModeOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
-      utterance.rate = 1.1;
-      utterance.pitch = 1.04;
-      utterance.volume = 0.95;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      // Speech synthesis is optional and can be blocked by the browser.
-    }
+    if (!coachModeOn) return;
+    pendingSpeech.current = Promise.all([pendingSpeech.current, speakAndWait(text, 1.1, 1.04, 0.95)]).then(() => undefined);
   }, [coachModeOn]);
 
-  const announceRuleChange = useCallback((shifted: boolean) => {
+  const announceRuleChange = useCallback((shifted: boolean): Promise<void> => {
     playTone(shifted ? "ruleWord" : "ruleInk");
-    if (!voiceAnnouncementsOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      const announcements = shifted ? RULE_ANNOUNCEMENTS.word : RULE_ANNOUNCEMENTS.ink;
-      const choices = announcements.filter((message) => message !== lastRuleAnnouncement.current);
-      const message = choices[Math.floor(Math.random() * choices.length)] ?? announcements[0];
-      lastRuleAnnouncement.current = message;
-      const utterance = new SpeechSynthesisUtterance(message);
-      utterance.lang = "en-US";
-      utterance.rate = 1.28;
-      utterance.pitch = shifted ? 0.98 : 1.04;
-      utterance.volume = 0.78;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      // The visual rule indicator remains available when speech is unsupported.
-    }
+    if (!voiceAnnouncementsOn) return Promise.resolve();
+    const announcements = shifted ? RULE_ANNOUNCEMENTS.word : RULE_ANNOUNCEMENTS.ink;
+    const choices = announcements.filter((message) => message !== lastRuleAnnouncement.current);
+    const message = choices[Math.floor(Math.random() * choices.length)] ?? announcements[0];
+    lastRuleAnnouncement.current = message;
+    return speakAndWait(message, 1.28, shifted ? 0.98 : 1.04, 0.78);
   }, [playTone, voiceAnnouncementsOn]);
 
   useEffect(() => {
@@ -1275,7 +1284,7 @@ function AppHome() {
     transitionTimer.current = null;
     setRemaining(kind === "practice" ? 5 : 60); setRound(null); setLastAnswer(null); setFeedback(null);
     setPhase("waiting"); setResolvedCorrect(null);
-    activeElapsed.current = 0; answerLocked.current = false;
+    activeElapsed.current = 0; answerLocked.current = false; resetSpeechState();
     ruleSequence.current = { queue: [], lastRule: null, consecutive: 0 };
     lastRuleAnnouncement.current = "";
     roundAttempts.current = [];
@@ -1326,6 +1335,7 @@ function AppHome() {
     ending.current = true;
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
     transitionTimer.current = null;
+    resetSpeechState();
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setFeedback(null); setPhase("waiting");
     if (sessionKind === "practice") {
@@ -1392,10 +1402,22 @@ function AppHome() {
     setFeedback(null);
     setResolvedCorrect(null);
     setLastAnswer(null);
+    const token = ++advanceToken.current;
     const next = nextRule(ruleSequence.current);
-    setRound(randomRound(next.shifted, next.ruleChanged, activeElapsed.current, score, streak));
-    setPhase("active");
-    if (next.ruleChanged) announceRuleChange(next.shifted);
+    const build = () => setRound(randomRound(next.shifted, next.ruleChanged, activeElapsed.current, score, streak));
+    if (!next.ruleChanged) { build(); setPhase("active"); return; }
+    const spoken = announceRuleChange(next.shifted);
+    speechHold.current = true;
+    document.documentElement.dataset.nextRule = next.shifted ? "word" : "ink";
+    document.documentElement.classList.add("is-announcing");
+    setPhase("resolving");
+    void spoken.then(() => {
+      if (token !== advanceToken.current) return;
+      speechHold.current = false;
+      document.documentElement.classList.remove("is-announcing");
+      build();
+      setPhase("active");
+    });
   }, [announceRuleChange, score, streak]);
 
   const pickFriendlyFeedback = useCallback(() => {
@@ -1412,8 +1434,16 @@ function AppHome() {
     setFeedback({ id: feedbackSequence.current, text, kind, duration });
     transitionTimer.current = window.setTimeout(() => {
       transitionTimer.current = null;
-      setFeedback(null);
-      showNextRound();
+      const token = advanceToken.current;
+      const spoken = pendingSpeech.current;
+      pendingSpeech.current = Promise.resolve();
+      speechHold.current = true;
+      void spoken.then(() => {
+        if (token !== advanceToken.current) return;
+        speechHold.current = false;
+        setFeedback(null);
+        showNextRound();
+      });
     }, duration);
   }, [showNextRound]);
 
@@ -1459,7 +1489,7 @@ function AppHome() {
       const now = performance.now();
       const delta = (now - lastTickAt.current) / 1000;
       lastTickAt.current = now;
-      if (paused) return;
+      if (paused || speechHold.current) return;
       activeElapsed.current = Math.min(duration, activeElapsed.current + delta);
       const elapsed = activeElapsed.current;
       const next = Math.max(0, duration - elapsed);
@@ -1578,11 +1608,30 @@ function AppHome() {
     }
     beginCountdown(sessionKind);
   };
+  useEffect(() => {
+    const active = screen === "playing" || screen === "practice" || screen === "countdown";
+    document.documentElement.classList.toggle("is-playing", active);
+    return () => { document.documentElement.classList.remove("is-playing"); document.documentElement.classList.remove("is-announcing"); };
+  }, [screen]);
+
   const home = () => {
+    resetSpeechState();
     if (transitionTimer.current) window.clearTimeout(transitionTimer.current);
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setScreen("home"); setPaused(false); setRound(null); setFeedback(null); setPhase("waiting"); setModal(null);
   };
+
+  const quit = () => {
+    if (!window.confirm("Quit this run? Your score will not be saved.")) return;
+    resetSpeechState();
+    home();
+  };
+
+  useEffect(() => {
+    const onQuit = () => quit();
+    window.addEventListener("ff-quit", onQuit);
+    return () => window.removeEventListener("ff-quit", onQuit);
+  });
 
   const changeLeaderboardScope = (scope: LeaderboardScope) => {
     void refreshLeaderboard(scope);
@@ -1616,6 +1665,7 @@ function AppHome() {
       {screen === "home" && <HomeScreen name={name} setName={setName} nameError={nameError} nameInputRef={nameInputRef} onNameBlur={() => { if (name.trim()) setNameAttempted(true); }} onStart={requestGame} onPractice={requestPractice} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} />}
       {screen === "countdown" && <div className="countdown" data-testid="countdown-screen"><div><span className="eyebrow" style={{ display: "block", textAlign: "center", marginBottom: 18 }}>{sessionKind === "practice" ? "practice round" : "your minute starts now"}</span><div className="countdown-number" key={countdown} data-testid="text-countdown">{countdown || "GO"}</div></div></div>}
       {(screen === "playing" || screen === "practice") && <GameScreen round={round} score={score} streak={streak} multiplier={currentMultiplier(streak)} tier={currentTier(streak)} bestStreak={bestStreak} total={total} correct={correct} remaining={remaining} duration={sessionKind === "practice" ? 5 : 60} paused={paused} onPause={() => setPaused((value) => !value)} onRestart={restart} onAnswer={handleAnswer} onHelp={openHelp} onSound={toggleSound} onFullscreen={toggleFullscreen} soundOn={soundOn} feedback={feedback} lastAnswer={lastAnswer} phase={phase} resolvedCorrect={resolvedCorrect} sessionKind={sessionKind} dialogOpen={modal !== null} />}
+      {(screen === "playing" || screen === "practice") && !paused && <button type="button" className="quit-fab" onClick={quit} data-testid="button-quit-game">Quit</button>}
       {screen === "results" && <ResultsScreen name={name.trim()} score={score} correct={correct} incorrect={incorrect} timeouts={timeouts} total={total} average={average} bestStreak={bestStreak} completedShifts={completedShifts} wordColorSwitchAttempts={wordColorSwitchPerformance.attempts} wordColorSwitchCorrect={wordColorSwitchPerformance.correct} moments={moments} leaderboardPosition={leaderboardPosition} leaderboard={leaderboard} leaderboardStatus={leaderboardStatus} leaderboardError={leaderboardError} leaderboardScope={leaderboardScope} onLeaderboardRetry={() => void refreshLeaderboard(leaderboardScope)} onLeaderboardScopeChange={changeLeaderboardScope} onDeleteLeaderboardEntry={deleteLeaderboardEntry} onRestart={() => beginCountdown("game")} onHome={home} onHelp={openHelp} soundOn={soundOn} onSound={toggleSound} onFullscreen={toggleFullscreen} />}
       {modal === "help" && (
         <HelpModal
@@ -1661,7 +1711,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 function App() {
   return (
     <TooltipProvider>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+      <WouterRouter {...(import.meta.env.VITE_SINGLE_FILE === "1" ? { hook: useHashLocation } : { base: import.meta.env.BASE_URL.replace(/\/$/, "") })}>
         <div className="arcade-app"><Router /></div>
       </WouterRouter>
       <Toaster />

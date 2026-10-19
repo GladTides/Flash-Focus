@@ -922,3 +922,163 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible, a:focus-vis
   .preview-prompt { bottom: 13px; font-size: .65rem; }
   .stamp-footer { bottom: 16px; left: 16px; right: 16px; }
 }
+
+/* === Office build: in-game layout and rule-change hold, matching the iOS app === */
+/* Full-screen play, quit button, landscape fit */
+html.is-playing .topbar, html.is-playing .app-footer { display: none !important; }
+html.is-playing, html.is-playing body { overflow: hidden; height: 100%; }
+html.is-playing .game-screen {
+  height: 100dvh; min-height: 0; overflow-y: auto;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 56px);
+}
+.quit-fab {
+  position: fixed; z-index: 40; min-height: 44px; min-width: 64px; padding: 0 16px;
+  left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom));
+  border-radius: 999px; border: 1px solid rgba(120, 130, 150, .6);
+  background: rgba(255, 255, 255, .92); color: #1a2238; font: inherit; font-weight: 600;
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .game-topbar { flex-wrap: wrap; gap: 6px; padding-block: 4px; }
+  .game-stats { gap: 10px; }
+  .game-stats .stat-value { font-size: 1rem; }
+  .round-panel { gap: 6px; }
+  .challenge-card { min-height: 0; padding: 8px 16px; }
+  .challenge-word { font-size: clamp(2rem, 9vh, 3rem); }
+  .answer-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .answer-button { min-height: 44px; padding-block: 6px; }
+  .answer-copy, .streak-line, .pause-note { margin: 2px 0; font-size: .75rem; }
+}
+
+/* Quit strip + compact portrait play */
+html.is-playing { --quit-band: 64px; }
+html.is-playing .game-screen {
+  height: calc(100dvh - var(--quit-band) - env(safe-area-inset-bottom));
+  padding-bottom: 0;
+}
+html.is-playing .quit-fab {
+  left: 50%; transform: translateX(-50%);
+  bottom: max(10px, env(safe-area-inset-bottom));
+}
+@media (orientation: portrait) {
+  html.is-playing .game-body { min-height: 0; padding: 6px 0 8px; }
+  html.is-playing .challenge-card { min-height: 150px; }
+  html.is-playing .answer-button { min-height: 52px; }
+  html.is-playing .game-topbar { gap: 6px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  html.is-playing { --quit-band: 56px; }
+}
+
+/* Minimal focus play: fit to screen, hide extras */
+html.is-playing .brand,
+html.is-playing [data-testid="button-game-restart"],
+html.is-playing [data-testid="button-game-sound"],
+html.is-playing [data-testid="button-game-fullscreen"],
+html.is-playing [data-testid="button-game-help"],
+html.is-playing .round-counter,
+html.is-playing .streak-line,
+html.is-playing .pause-note,
+html.is-playing .timer-wrap .stat-label { display: none !important; }
+
+html.is-playing { --quit-band: 0px; }
+html.is-playing .game-screen {
+  height: 100dvh !important; min-height: 0 !important; overflow: hidden !important;
+  display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left) !important;
+}
+html.is-playing .game-topbar {
+  flex: 0 0 auto; flex-wrap: nowrap; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 84px;
+}
+html.is-playing .game-stats { flex: 1; gap: 12px; flex-wrap: nowrap; min-width: 0; }
+html.is-playing .game-stats .stat-label { font-size: .6rem; }
+html.is-playing .game-stats .stat-value { font-size: 1rem; }
+html.is-playing .timer-wrap { min-width: 90px; }
+html.is-playing .top-actions { flex: 0 0 auto; }
+html.is-playing .game-body {
+  flex: 1 1 auto; min-height: 0 !important; padding: 4px 12px 8px !important;
+  display: grid; place-items: center;
+}
+html.is-playing .round-panel {
+  width: min(760px, 100%); max-height: 100%;
+  display: flex; flex-direction: column; justify-content: center; gap: clamp(4px, 1.6dvh, 12px);
+}
+html.is-playing .round-meta { margin: 0; justify-content: center; }
+html.is-playing .challenge-card { min-height: 0 !important; height: clamp(84px, 24dvh, 220px); padding: 0 16px; }
+html.is-playing .challenge-word { font-size: clamp(2rem, 9dvh, 4.5rem); }
+html.is-playing .answer-copy { margin: 0; font-size: .75rem; }
+html.is-playing .answer-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+html.is-playing .answer-button { min-height: clamp(44px, 12dvh, 64px); padding-block: 4px; }
+
+/* Quit: small pill, top-left corner (brand is hidden there) */
+html.is-playing .quit-fab {
+  left: max(10px, env(safe-area-inset-left)); bottom: auto; transform: none;
+  top: max(8px, env(safe-area-inset-top)); min-height: 44px; min-width: 60px; padding: 0 14px;
+}
+
+/* Build 46: portrait timer row, toast placement, landing safe area */
+html:not(.is-playing) body { padding-top: env(safe-area-inset-top); }
+
+html.is-playing .toast-feedback {
+  position: fixed !important; left: 0 !important; right: 0 !important; top: auto !important;
+  margin-inline: auto !important; width: fit-content; max-width: min(86vw, 520px);
+  transform: none !important; pointer-events: none; z-index: 30;
+  bottom: calc(env(safe-area-inset-bottom) + 8px) !important;
+}
+@media (orientation: portrait) {
+  html.is-playing .quit-fab {
+    top: auto; bottom: max(10px, env(safe-area-inset-bottom));
+    left: 0; right: 0; margin-inline: auto; width: fit-content; transform: none;
+  }
+  html.is-playing .game-screen {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 64px) !important;
+  }
+  html.is-playing .game-topbar { padding: 6px 12px; }
+  html.is-playing .game-stats { flex-wrap: wrap; row-gap: 6px; }
+  html.is-playing .timer-wrap {
+    flex: 1 1 100%; display: flex; align-items: center; gap: 12px; min-width: 0;
+  }
+  html.is-playing .timer-wrap .timer-track { flex: 1; }
+  html.is-playing .challenge-card { height: clamp(110px, 26dvh, 280px); }
+  html.is-playing .answer-button { min-height: clamp(52px, 9dvh, 84px); }
+  html.is-playing .toast-feedback { bottom: calc(env(safe-area-inset-bottom) + 76px) !important; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  html.is-playing .toast-feedback { font-size: .8rem; padding: 6px 12px; bottom: 6px !important; }
+}
+
+/* Build 47: stop long words widening the play screen */
+html.is-playing, html.is-playing body { overflow-x: hidden; max-width: 100vw; }
+html.is-playing .game-screen, html.is-playing .game-body { max-width: 100vw; }
+html.is-playing .game-body { grid-template-columns: minmax(0, 1fr) !important; }
+html.is-playing .round-panel { min-width: 0; width: 100%; }
+html.is-playing .challenge-card { max-width: 100%; overflow: hidden; }
+html.is-playing .challenge-word {
+  font-size: clamp(1.8rem, min(9dvh, 14vw), 4.5rem) !important;
+  max-width: 100%; white-space: nowrap;
+}
+html.is-playing .answer-grid { min-width: 0; }
+html.is-playing .answer-button { min-width: 0; }
+
+/* Build 48: hide stale round during announcement, remove duplicate prompt */
+html.is-playing .answer-copy { display: none !important; }
+html.is-announcing .challenge-word,
+html.is-announcing .answer-grid,
+html.is-announcing .rule-indicator { visibility: hidden; }
+html.is-announcing .challenge-card { position: relative; }
+html.is-announcing .challenge-card::after {
+  content: "Rule change…"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: #fff; font-size: 1.3rem; letter-spacing: .12em;
+}
+
+/* Build 49: gap under card */
+html.is-playing .challenge-card { margin-bottom: 8px; }
+html.is-playing .answer-grid { margin-top: 22px !important; }
+
+/* Build 50: announce the upcoming rule on the card */
+html.is-announcing .challenge-card::after {
+  inset: 0 0 20px 0; text-align: center; white-space: pre-line;
+  line-height: 1.6; font-weight: 700; letter-spacing: .12em;
+}
+html.is-announcing[data-next-rule="word"] .challenge-card::after { content: "WORD COLOR\A READ THE WORD"; color: #f5a56a; }
